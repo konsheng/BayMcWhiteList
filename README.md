@@ -103,6 +103,42 @@ server:
 
 UUID 模式下，`generate <玩家名>` 只能给当前在线玩家生成；如果玩家不在线，可以直接传 UUID
 
+## 🧩 邀请码创建提示词
+
+需要让其他 AI 根据正版玩家名联网查询 UUID 并创建邀请码时，可以直接使用下面的提示词：
+
+```text
+玩家ID: <填写玩家名>
+
+联网查询该玩家的正版 Minecraft UUID，使用 Mojang 官方接口:
+https://api.mojang.com/users/profiles/minecraft/<玩家ID>
+
+将返回的 32 位 UUID 转成标准 UUID 格式:
+xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+邀请码配置:
+prefix = BAYMC
+secret = <填写 code.secret>
+suffixLength = 8
+validDays = 7
+timezone = Asia/Shanghai
+
+创建规则:
+playerKey = 标准 UUID 字符串
+issueDate = timezone 当前日期，格式 yyyy-MM-dd
+payload = playerKey + ":" + issueDate + ":" + prefix
+digest = HMAC-SHA256(secret 的 UTF-8 字节, payload 的 UTF-8 字节)
+suffix = digest 的 RFC4648 Base32 无填充编码前 suffixLength 位
+邀请码 = prefix + "-" + suffix
+
+输出:
+玩家ID:
+UUID:
+签发日期:
+有效期至:
+邀请码:
+```
+
 ## 🔐 权限
 
 - **`baymcwhitelist.use`**<br>
