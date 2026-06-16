@@ -7,11 +7,14 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Map;
 
 /**
  * 持有 HikariCP 数据源, 并负责初始化 MySQL 表结构
  */
 public final class DatabaseManager implements AutoCloseable {
+    private static final SqlTemplates SCHEMA_SQL = SqlTemplates.load("sql/schema.sql");
+
     private final PluginConfig.MysqlSettings settings;
     private HikariDataSource dataSource;
     private boolean ready;
@@ -107,62 +110,28 @@ public final class DatabaseManager implements AutoCloseable {
     private void initializeSchema() throws SQLException {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
-            String playersTable = playersTable();
-            String logsTable = logsTable();
-
-            statement.executeUpdate("""
-                    CREATE TABLE IF NOT EXISTS %s (
-                      id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                      player_key VARCHAR(%d) NOT NULL UNIQUE,
-                      player_uuid VARCHAR(%d),
-                      player_name VARCHAR(%d) NOT NULL,
-                      code VARCHAR(%d) NOT NULL,
-                      issue_date DATE NOT NULL,
-                      used_at DATETIME NOT NULL,
-                      source_server VARCHAR(%d),
-                      last_seen_at DATETIME,
-                      INDEX idx_player_uuid (player_uuid),
-                      INDEX idx_player_name (player_name)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                    """.formatted(
-                            playersTable,
-                            StorageLimits.PLAYER_KEY,
-                            StorageLimits.PLAYER_UUID,
-                            StorageLimits.PLAYER_NAME,
-                            StorageLimits.CODE,
-                            StorageLimits.SERVER_NAME
-                    ));
-
-            statement.executeUpdate("""
-                    CREATE TABLE IF NOT EXISTS %s (
-                      id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                      player_key VARCHAR(%d) NOT NULL,
-                      player_name VARCHAR(%d) NOT NULL,
-                      action VARCHAR(%d) NOT NULL,
-                      code VARCHAR(%d),
-                      server_name VARCHAR(%d),
-                      ip VARCHAR(%d),
-                      message VARCHAR(%d),
-                      created_at DATETIME NOT NULL,
-                      INDEX idx_player_key (player_key),
-                      INDEX idx_created_at (created_at)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                    """.formatted(
-                            logsTable,
-                            StorageLimits.PLAYER_KEY,
-                            StorageLimits.PLAYER_NAME,
-                            StorageLimits.ACTION,
-                            StorageLimits.CODE,
-                            StorageLimits.SERVER_NAME,
-                            StorageLimits.IP,
-                            StorageLimits.MESSAGE
-                    ));
-
-            statement.executeUpdate("ALTER TABLE " + playersTable
-                    + " MODIFY COLUMN code VARCHAR(" + StorageLimits.CODE + ") NOT NULL");
-            statement.executeUpdate("ALTER TABLE " + logsTable
-                    + " MODIFY COLUMN code VARCHAR(" + StorageLimits.CODE + ")");
+            Map<String, String> placeholders = schemaPlaceholders();
+            statement.executeUpdate(SCHEMA_SQL.render("create_whitelist_players", placeholders));
+            statement.executeUpdate(SCHEMA_SQL.render("create_whitelist_logs", placeholders));
         }
+    }
+
+    /**
+     * 构建建表模板所需的安全占位符
+     */
+    private Map<String, String> schemaPlaceholders() {
+        return Map.of(
+                "players_table", playersTable(),
+                "logs_table", logsTable(),
+                "player_key_length", String.valueOf(StorageLimits.PLAYER_KEY),
+                "player_uuid_length", String.valueOf(StorageLimits.PLAYER_UUID),
+                "player_name_length", String.valueOf(StorageLimits.PLAYER_NAME),
+                "code_length", String.valueOf(StorageLimits.CODE),
+                "server_name_length", String.valueOf(StorageLimits.SERVER_NAME),
+                "action_length", String.valueOf(StorageLimits.ACTION),
+                "ip_length", String.valueOf(StorageLimits.IP),
+                "message_length", String.valueOf(StorageLimits.MESSAGE)
+        );
     }
 
     /**
