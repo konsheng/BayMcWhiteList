@@ -4,7 +4,11 @@ plugins {
 }
 
 group = "com.baymc.whitelist"
-version = "1.0-SNAPSHOT"
+
+val baseVersion = "1.0.0-SNAPSHOT"
+val gitCommitShort = providers.gradleProperty("gitCommitShort").orElse("unknown")
+
+version = providers.gradleProperty("artifactVersionOverride").orElse(baseVersion).get()
 
 repositories {
     mavenCentral()
@@ -33,6 +37,17 @@ tasks.withType<JavaCompile> {
     options.release.set(25)
 }
 
+tasks.withType<Jar> {
+    archiveBaseName.set("BayMcWhiteList")
+    manifest {
+        attributes(
+            "Implementation-Title" to "BayMcWhiteList",
+            "Implementation-Version" to project.version,
+            "Git-Commit-Short" to gitCommitShort.get(),
+        )
+    }
+}
+
 tasks.processResources {
     filteringCharset = "UTF-8"
     filesMatching("plugin.yml") {
@@ -51,4 +66,12 @@ tasks.build {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.register("printVersion") {
+    group = "versioning"
+    description = "Prints the base project version used for development release tags."
+    doLast {
+        println(baseVersion)
+    }
 }
