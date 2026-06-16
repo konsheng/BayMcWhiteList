@@ -1,0 +1,27 @@
+name: BayMcWhiteList
+version: ${version}
+main: com.baymc.whitelist.BayMcWhiteListPlugin
+api-version: "26.1.2"
+folia-supported: true
+
+commands:
+  baymcwhitelist:
+    aliases:
+      - bmwl
+  whitelist: {}
+
+permissions:
+  baymcwhitelist.use:
+    default: true
+  baymcwhitelist.admin:
+    default: op
+  baymcwhitelist.generate:
+    default: op
+  baymcwhitelist.status:
+    default: op
+  baymcwhitelist.remove:
+    default: op
+  baymcwhitelist.reload:
+    default: op
+  baymcwhitelist.info:
+    default: op

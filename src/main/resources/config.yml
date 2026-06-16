@@ -1,0 +1,51 @@
+# BayMcWhiteList
+# MySQL is the single source of truth for whitelist state. Do not enable the
+# vanilla whitelist for protected servers unless another component keeps it in
+# sync with this database.
+
+code:
+  # Player-facing invite codes look like BAYMC-XXXXXXXX.
+  prefix: "BAYMC"
+
+  # Replace this on every server before production use. The same secret must be
+  # shared by every server, website, or bot that generates BayMC invite codes.
+  secret: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
+
+  # RFC4648 Base32 characters are used: A-Z and 2-7.
+  suffix-length: 8
+
+  # Codes are checked against today and the previous valid-days - 1 natural days
+  # in the configured timezone.
+  valid-days: 7
+  timezone: "Asia/Shanghai"
+  case-sensitive: false
+
+player:
+  # uuid is recommended for online-mode servers. name is useful for offline-mode
+  # or external-auth networks where the player name is the stable account id.
+  id-type: "uuid"
+
+storage:
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "baymc"
+    username: "root"
+    password: "password"
+    table-prefix: "baymc_"
+    use-ssl: false
+    pool:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 10000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+server:
+  # Use login on the login/verification server. Use protected on every main
+  # gameplay server that must reject players not present in MySQL.
+  name: "login"
+  mode: "login"
+
+language:
+  file: "zh_CN.yml"
