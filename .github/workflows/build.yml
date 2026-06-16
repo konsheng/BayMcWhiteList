@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  # 更新移动 SNAPSHOT 标签和预发布资产需要写权限
   contents: write
 
 jobs:
@@ -40,6 +41,7 @@ jobs:
           # 使用当前提交的 7 位短哈希, 区分不同开发构建
           short_sha="${GITHUB_SHA::7}"
           artifact_version="${base_version}-${short_sha}"
+          # 开发版预发布始终复用基础版本号作为移动标签
           release_tag="${base_version}"
           jar_name="BayMcWhiteList-${artifact_version}.jar"
 
@@ -52,6 +54,7 @@ jobs:
         shell: bash
         run: |
           chmod +x gradlew
+          # CI 构建使用短哈希覆盖产物版本, 普通本地构建不传该参数
           ./gradlew --no-daemon clean build -PartifactVersionOverride=${{ steps.meta.outputs.artifact_version }} -PgitCommitShort=${GITHUB_SHA::7}
 
       - name: 上传构建产物
@@ -101,6 +104,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CURRENT_TAG: ${{ steps.meta.outputs.release_tag }}
         run: |
+          # 只清理旧 SNAPSHOT 预发布, 保留当前基础版本对应的移动标签
           gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '
             .[]
             | select(.prerelease == true)
@@ -126,6 +130,7 @@ jobs:
           NOTES_FILE: ${{ steps.snapshot_notes.outputs.notes_file }}
           JAR_NAME: ${{ steps.meta.outputs.jar_name }}
         run: |
+          # 同一个 SNAPSHOT 标签重复发布时更新说明和资产
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_FILE" --prerelease --target "$GITHUB_SHA"
           else

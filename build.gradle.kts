@@ -5,9 +5,13 @@ plugins {
 
 group = "com.baymc.whitelist"
 
+// 本地构建和开发版移动标签使用的基础版本号
 val baseVersion = "1.0.0-SNAPSHOT"
+
+// 持续集成会传入该值, 让构建出的插件包在清单中记录来源提交
 val gitCommitShort = providers.gradleProperty("gitCommitShort").orElse("unknown")
 
+// 本地构建使用基础版本; 自动构建只覆盖构建产物版本号
 version = providers.gradleProperty("artifactVersionOverride").orElse(baseVersion).get()
 
 repositories {
@@ -38,6 +42,7 @@ tasks.withType<JavaCompile> {
 }
 
 tasks.withType<Jar> {
+    // 保持普通插件包和依赖打包插件包的基础文件名与工作流一致
     archiveBaseName.set("BayMcWhiteList")
     manifest {
         attributes(
@@ -51,16 +56,19 @@ tasks.withType<Jar> {
 tasks.processResources {
     filteringCharset = "UTF-8"
     filesMatching("plugin.yml") {
+        // plugin.yml 写入与插件包文件名一致的版本号
         expand("version" to project.version)
     }
 }
 
 tasks.shadowJar {
+    // 可部署的插件产物是已经打包依赖的插件包
     archiveClassifier.set("")
     mergeServiceFiles()
 }
 
 tasks.build {
+    // 确保自动构建和本地构建都会生成可部署的插件包
     dependsOn(tasks.shadowJar)
 }
 
@@ -70,8 +78,9 @@ tasks.test {
 
 tasks.register("printVersion") {
     group = "versioning"
-    description = "Prints the base project version used for development release tags."
+    description = "输出开发版发布标签使用的基础项目版本"
     doLast {
+        // 工作流先读取该版本作为发布标签, 再为构建产物追加短提交后缀
         println(baseVersion)
     }
 }

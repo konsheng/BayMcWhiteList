@@ -14,6 +14,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 从 lang/*.yml 加载 MiniMessage 文本, 并发送给 Bukkit 命令来源
+ */
 public final class LangManager {
     private static final String MISSING_KEY_PATH = "common.missing-language-key";
 
@@ -21,29 +24,47 @@ public final class LangManager {
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private YamlConfiguration language;
 
+    /**
+     * 保存插件实例, 用于从插件数据目录中解析语言文件
+     */
     public LangManager(JavaPlugin plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * 从 plugins/BayMcWhiteList/lang 重新加载指定语言文件
+     */
     public void reload(String languageFileName) {
         File file = new File(plugin.getDataFolder(), "lang/" + languageFileName);
         language = YamlConfiguration.loadConfiguration(file);
     }
 
+    /**
+     * 发送不带占位符的语言键
+     */
     public void send(CommandSender sender, String key) {
         send(sender, key, Map.of());
     }
 
+    /**
+     * 发送某个语言键对应的所有行
+     */
     public void send(CommandSender sender, String key, Map<String, String> placeholders) {
         for (Component component : components(key, placeholders)) {
             sender.sendMessage(component);
         }
     }
 
+    /**
+     * 解析不带占位符的单个组件
+     */
     public Component component(String key) {
         return component(key, Map.of());
     }
 
+    /**
+     * 解析某个语言键的第一个组件
+     */
     public Component component(String key, Map<String, String> placeholders) {
         List<Component> components = components(key, placeholders);
         if (components.isEmpty()) {
@@ -52,6 +73,9 @@ public final class LangManager {
         return components.getFirst();
     }
 
+    /**
+     * 将多行语言键合并为一个用换行分隔的组件
+     */
     public Component joined(String key, Map<String, String> placeholders) {
         List<Component> components = components(key, placeholders);
         Component joined = Component.empty();
@@ -64,10 +88,16 @@ public final class LangManager {
         return joined;
     }
 
+    /**
+     * 将语言键转为纯文本, 便于嵌入其他消息
+     */
     public String plain(String key) {
         return PlainTextComponentSerializer.plainText().serialize(component(key));
     }
 
+    /**
+     * 将字符串节点或字符串列表节点解析为 MiniMessage 组件
+     */
     public List<Component> components(String key, Map<String, String> placeholders) {
         if (language == null) {
             return List.of(Component.empty());
@@ -86,10 +116,16 @@ public final class LangManager {
         return List.of(deserialize(line, placeholders));
     }
 
+    /**
+     * 使用传入占位符解析一行 MiniMessage 文本
+     */
     private Component deserialize(String input, Map<String, String> placeholders) {
         return miniMessage.deserialize(input, resolver(placeholders));
     }
 
+    /**
+     * 返回语言文件中配置的缺失键提示, 避免硬编码兜底文本
+     */
     private Component missingKey(String key) {
         String fallback = language.getString(MISSING_KEY_PATH);
         if (fallback == null) {
@@ -99,6 +135,9 @@ public final class LangManager {
         return deserialize(fallback, Map.of("key", key));
     }
 
+    /**
+     * 将简单字符串占位符转换为 MiniMessage 标签解析器
+     */
     private static TagResolver resolver(Map<String, String> placeholders) {
         List<TagResolver> resolvers = new ArrayList<>();
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {

@@ -13,15 +13,24 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Optional;
 
+/**
+ * 管理白名单状态和审计日志的 SQL 仓库
+ */
 public final class WhitelistRepository {
     private final DatabaseManager database;
     private final String serverName;
 
+    /**
+     * 将仓库调用绑定到当前数据库管理器和服务器名
+     */
     public WhitelistRepository(DatabaseManager database, String serverName) {
         this.database = database;
         this.serverName = serverName;
     }
 
+    /**
+     * 检查标准玩家标识是否存在于白名单表中
+     */
     public boolean isWhitelisted(String playerKey) throws SQLException {
         String sql = "SELECT 1 FROM " + database.playersTable() + " WHERE player_key = ? LIMIT 1";
         try (Connection connection = database.getConnection();
@@ -33,6 +42,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 根据标准玩家标识查询一条白名单记录
+     */
     public Optional<WhitelistRecord> findByKey(String playerKey) throws SQLException {
         String sql = "SELECT * FROM " + database.playersTable() + " WHERE player_key = ? LIMIT 1";
         try (Connection connection = database.getConnection();
@@ -44,6 +56,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 根据玩家名查询最新的一条匹配记录
+     */
     public Optional<WhitelistRecord> findByName(String playerName) throws SQLException {
         String sql = "SELECT * FROM " + database.playersTable()
                 + " WHERE LOWER(player_name) = ? ORDER BY used_at DESC LIMIT 1";
@@ -56,6 +71,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 验证成功后插入或刷新白名单记录
+     */
     public void upsert(PlayerIdentity identity, String code, LocalDate issueDate, LocalDateTime usedAt) throws SQLException {
         String sql = """
                 INSERT INTO %s
@@ -86,6 +104,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 根据标准玩家标识移除白名单记录
+     */
     public boolean removeByKey(String playerKey) throws SQLException {
         String sql = "DELETE FROM " + database.playersTable() + " WHERE player_key = ?";
         try (Connection connection = database.getConnection();
@@ -95,6 +116,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 在受保护服务器登录检查时更新最后出现时间
+     */
     public void updateLastSeen(String playerKey, LocalDateTime lastSeenAt) throws SQLException {
         String sql = "UPDATE " + database.playersTable() + " SET last_seen_at = ? WHERE player_key = ?";
         try (Connection connection = database.getConnection();
@@ -105,6 +129,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 向日志表追加一条审计记录
+     */
     public void log(WhitelistLogEntry entry) throws SQLException {
         String sql = """
                 INSERT INTO %s
@@ -127,6 +154,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 将当前 ResultSet 行映射为 WhitelistRecord
+     */
     private static WhitelistRecord readRecord(ResultSet resultSet) throws SQLException {
         Timestamp usedAt = resultSet.getTimestamp("used_at");
         Timestamp lastSeenAt = resultSet.getTimestamp("last_seen_at");
@@ -143,6 +173,9 @@ public final class WhitelistRepository {
         );
     }
 
+    /**
+     * 保证日志消息字段不超过表结构限制
+     */
     private static String truncate(String input, int maxLength) {
         if (input == null || input.length() <= maxLength) {
             return input;

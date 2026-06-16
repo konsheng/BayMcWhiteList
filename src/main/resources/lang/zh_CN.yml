@@ -1,8 +1,8 @@
 common:
-  no-permission: "<red>你没有权限使用该命令。</red>"
-  only-player: "<red>该命令只能由玩家执行。</red>"
-  unknown-command: "<red>未知子命令。</red>"
-  invalid-player-identifier: "<red>玩家标识不合法，请输入玩家名或 UUID。</red>"
+  no-permission: "<red>你没有权限使用该命令</red>"
+  only-player: "<red>该命令只能由玩家执行</red>"
+  unknown-command: "<red>未知子命令</red>"
+  invalid-player-identifier: "<red>玩家标识不合法, 请输入玩家名或 UUID</red>"
   missing-language-key: "<red>语言文件缺少节点: <white><key></white></red>"
 
 usage:
@@ -13,24 +13,24 @@ usage:
   admin: "<yellow>用法: <white>/baymcwhitelist <generate|status|remove|reload|info></white></yellow>"
 
 code:
-  login-server-only: "<red>该服务器不能进行白名单验证，请前往登录服。</red>"
-  invalid-format: "<red>邀请码格式错误，应为: <white><prefix>-XXXXXXXX</white></red>"
-  invalid-or-expired: "<red>邀请码无效或已过期。</red>"
-  success: "<green>白名单验证成功，你已加入 BayMC 白名单。</green>"
-  already-whitelisted: "<yellow>你已经通过白名单验证。</yellow>"
+  login-server-only: "<red>该服务器不能进行白名单验证, 请前往登录服</red>"
+  invalid-format: "<red>邀请码格式错误, 应为: <white><prefix>-XXXXXXXX</white></red>"
+  invalid-or-expired: "<red>邀请码无效或已过期</red>"
+  success: "<green>白名单验证成功, 你已加入 BayMC 白名单</green>"
+  already-whitelisted: "<yellow>你已经通过白名单验证</yellow>"
 
 admin:
-  reload-started: "<yellow>正在重载配置、语言文件和数据库连接...</yellow>"
-  reload-success: "<green>配置、语言文件和数据库连接已重载。</green>"
-  reload-failed: "<red>重载失败，请查看后台日志。</red>"
+  reload-started: "<yellow>正在重载配置, 语言文件和数据库连接</yellow>"
+  reload-success: "<green>配置, 语言文件和数据库连接已重载</green>"
+  reload-failed: "<red>重载失败, 请查看后台日志</red>"
   generate-success:
-    - "<green>已为玩家 <white><player></white> 生成邀请码:</green>"
+    - "<green>已为玩家 <white><player></white> 生成邀请码</green>"
     - "<yellow><code></yellow>"
     - "<gray>玩家标识: <white><player_key></white></gray>"
     - "<gray>有效期至: <white><expire_time></white></gray>"
-  player-not-online-for-uuid-mode: "<red>当前使用 UUID 模式，玩家不在线且输入的不是 UUID，无法生成绑定邀请码。</red>"
+  player-not-online-for-uuid-mode: "<red>当前使用 UUID 模式, 玩家不在线且输入的不是 UUID, 无法生成绑定邀请码</red>"
   status-whitelisted:
-    - "<green>玩家 <white><player></white> 已通过白名单。</green>"
+    - "<green>玩家 <white><player></white> 已通过白名单</green>"
     - "<gray>玩家标识: <white><player_key></white></gray>"
     - "<gray>UUID: <white><uuid></white></gray>"
     - "<gray>邀请码: <white><code></white></gray>"
@@ -38,9 +38,9 @@ admin:
     - "<gray>验证时间: <white><used_at></white></gray>"
     - "<gray>来源服务器: <white><source_server></white></gray>"
     - "<gray>最后进入: <white><last_seen_at></white></gray>"
-  status-not-whitelisted: "<yellow>玩家 <white><player></white> 尚未通过白名单。</yellow>"
-  remove-success: "<green>已移除玩家 <white><player></white> 的白名单记录。</green>"
-  remove-not-found: "<yellow>未找到玩家 <white><player></white> 的白名单记录。</yellow>"
+  status-not-whitelisted: "<yellow>玩家 <white><player></white> 尚未通过白名单</yellow>"
+  remove-success: "<green>已移除玩家 <white><player></white> 的白名单记录</green>"
+  remove-not-found: "<yellow>未找到玩家 <white><player></white> 的白名单记录</yellow>"
   info:
     - "<green>BayMcWhiteList <white>v<version></white></green>"
     - "<gray>服务器: <white><server_name></white> / 模式: <white><server_mode></white></gray>"
@@ -49,8 +49,8 @@ admin:
     - "<gray>数据库状态: <white><database_status></white></gray>"
 
 mysql:
-  not-ready: "<red>数据库尚未就绪，请稍后再试或联系管理员。</red>"
-  operation-failed: "<red>数据库操作失败，请稍后再试或联系管理员。</red>"
+  not-ready: "<red>数据库尚未就绪, 请稍后再试或联系管理员</red>"
+  operation-failed: "<red>数据库操作失败, 请稍后再试或联系管理员</red>"
 
 state:
   database-ready: "已连接"
@@ -63,8 +63,8 @@ state:
 
 join:
   not-whitelisted:
-    - "<red>你还没有通过 BayMC 白名单验证。</red>"
-    - "<yellow>请先进入登录服，使用 <white>/whitelist <邀请码></white> 完成验证。</yellow>"
+    - "<red>你还没有通过 BayMC 白名单验证</red>"
+    - "<yellow>请先进入登录服, 使用 <white>/whitelist <邀请码></white> 完成验证</yellow>"
   database-unavailable:
-    - "<red>白名单系统暂时不可用。</red>"
-    - "<gray>请稍后再试或联系管理员。</gray>"
+    - "<red>白名单系统暂时不可用</red>"
+    - "<gray>请稍后再试或联系管理员</gray>"

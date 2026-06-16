@@ -1,15 +1,18 @@
+# Paper 启动时读取的插件元数据
 name: BayMcWhiteList
 version: ${version}
 main: com.baymc.whitelist.BayMcWhiteListPlugin
 api-version: "26.1.2"
 folia-supported: true
 
+# 命令权限在代码中检查, 确保拒绝提示都能走 lang/*.yml
 commands:
   baymcwhitelist:
     aliases:
       - bmwl
   whitelist: {}
 
+# 权限默认值对应玩家命令和管理员命令的分工
 permissions:
   baymcwhitelist.use:
     default: true

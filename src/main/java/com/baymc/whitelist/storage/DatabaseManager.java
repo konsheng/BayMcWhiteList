@@ -8,15 +8,24 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+/**
+ * 持有 HikariCP 数据源, 并负责初始化 MySQL 表结构
+ */
 public final class DatabaseManager implements AutoCloseable {
     private final PluginConfig.MysqlSettings settings;
     private HikariDataSource dataSource;
     private boolean ready;
 
+    /**
+     * 保存已校验的 MySQL 配置, 供后续启动连接池使用
+     */
     public DatabaseManager(PluginConfig.MysqlSettings settings) {
         this.settings = settings;
     }
 
+    /**
+     * 重新创建连接池, 并确保所需数据表存在
+     */
     public synchronized void start() throws SQLException {
         close();
 
@@ -47,10 +56,16 @@ public final class DatabaseManager implements AutoCloseable {
         }
     }
 
+    /**
+     * 判断调用方当前是否可以从连接池借出连接
+     */
     public boolean isReady() {
         return ready && dataSource != null && !dataSource.isClosed();
     }
 
+    /**
+     * 借出数据库连接; 如果启动未完成则快速失败
+     */
     public Connection getConnection() throws SQLException {
         if (!isReady()) {
             throw new SQLException("Database is not ready");
@@ -58,16 +73,25 @@ public final class DatabaseManager implements AutoCloseable {
         return dataSource.getConnection();
     }
 
+    /**
+     * 返回带引号的白名单玩家表名
+     */
     public String playersTable() {
-        // table-prefix is validated against [A-Za-z0-9_] while loading config,
-        // so these identifiers are safe to interpolate after quoting.
+        // table-prefix 在加载配置时已按 [A-Za-z0-9_] 校验
+        // 因此加引号后可以安全插入 SQL 标识符
         return quote(settings.tablePrefix() + "whitelist_players");
     }
 
+    /**
+     * 返回带引号的审计日志表名
+     */
     public String logsTable() {
         return quote(settings.tablePrefix() + "whitelist_logs");
     }
 
+    /**
+     * 关闭当前连接池, 并标记数据库不可用
+     */
     @Override
     public synchronized void close() {
         ready = false;
@@ -77,6 +101,9 @@ public final class DatabaseManager implements AutoCloseable {
         }
     }
 
+    /**
+     * 在数据表不存在时创建插件所需的两张表
+     */
     private void initializeSchema() throws SQLException {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
@@ -114,6 +141,9 @@ public final class DatabaseManager implements AutoCloseable {
         }
     }
 
+    /**
+     * 根据配置值和固定安全默认值构建 JDBC URL
+     */
     private String jdbcUrl() {
         return "jdbc:mysql://"
                 + settings.host()
@@ -129,6 +159,9 @@ public final class DatabaseManager implements AutoCloseable {
                 + "&serverTimezone=UTC";
     }
 
+    /**
+     * 使用 MySQL 反引号包裹已校验的 SQL 标识符
+     */
     private static String quote(String identifier) {
         return "`" + identifier + "`";
     }

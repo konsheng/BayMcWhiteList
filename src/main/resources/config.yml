@@ -1,28 +1,26 @@
-# BayMcWhiteList
-# MySQL is the single source of truth for whitelist state. Do not enable the
-# vanilla whitelist for protected servers unless another component keeps it in
-# sync with this database.
+# BayMcWhiteList 配置文件
+# MySQL 是白名单状态的唯一数据源, 除非有其他组件负责同步数据库
+# 否则不要在受保护服务器上启用原版白名单
 
 code:
-  # Player-facing invite codes look like BAYMC-XXXXXXXX.
+  # 玩家看到的邀请码格式类似 BAYMC-XXXXXXXX
   prefix: "BAYMC"
 
-  # Replace this on every server before production use. The same secret must be
-  # shared by every server, website, or bot that generates BayMC invite codes.
+  # 生产环境使用前必须在每台服务器上修改, 所有生成 BayMC 邀请码的
+  # 服务器, 网站或机器人都必须使用同一个密钥
   secret: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
 
-  # RFC4648 Base32 characters are used: A-Z and 2-7.
+  # 使用 RFC4648 Base32 字符: A-Z 和 2-7
   suffix-length: 8
 
-  # Codes are checked against today and the previous valid-days - 1 natural days
-  # in the configured timezone.
+  # 验证时会按配置时区检查今天以及前 valid-days - 1 个自然日
   valid-days: 7
   timezone: "Asia/Shanghai"
   case-sensitive: false
 
 player:
-  # uuid is recommended for online-mode servers. name is useful for offline-mode
-  # or external-auth networks where the player name is the stable account id.
+  # 正版 online-mode 服务器建议使用 uuid, 离线服或外置登录网络中
+  # 如果玩家名才是稳定账号标识, 可以使用 name
   id-type: "uuid"
 
 storage:
@@ -42,8 +40,7 @@ storage:
       max-lifetime: 1800000
 
 server:
-  # Use login on the login/verification server. Use protected on every main
-  # gameplay server that must reject players not present in MySQL.
+  # 登录/验证服使用 login, 需要拒绝未写入 MySQL 玩家进入的主服或玩法服使用 protected
   name: "login"
   mode: "login"
 
