@@ -10,7 +10,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -71,7 +70,7 @@ public final class WhitelistRepository {
         String sql = sql("find_by_name");
         try (Connection connection = database.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, playerName.toLowerCase(Locale.ROOT));
+            statement.setString(1, playerName);
             try (ResultSet resultSet = statement.executeQuery()) {
                 return resultSet.next() ? Optional.of(readRecord(resultSet)) : Optional.empty();
             }

@@ -5,7 +5,7 @@ SELECT 1 FROM ${players_table} WHERE player_key = ? LIMIT 1
 SELECT * FROM ${players_table} WHERE player_key = ? LIMIT 1
 
 -- name: find_by_name
-SELECT * FROM ${players_table} WHERE LOWER(player_name) = ? ORDER BY used_at DESC LIMIT 1
+SELECT * FROM ${players_table} WHERE player_name = ? ORDER BY used_at DESC LIMIT 1
 
 -- name: upsert_player
 INSERT INTO ${players_table}

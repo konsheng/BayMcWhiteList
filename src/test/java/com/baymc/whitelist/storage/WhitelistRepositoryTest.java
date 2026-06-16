@@ -3,7 +3,9 @@ package com.baymc.whitelist.storage;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 针对仓库层写入边界的单元测试
@@ -28,5 +30,19 @@ class WhitelistRepositoryTest {
 
         assertEquals(StorageLimits.CODE, WhitelistRepository.truncate(longCode, StorageLimits.CODE).length());
         assertEquals(StorageLimits.MESSAGE, WhitelistRepository.truncate(longMessage, StorageLimits.MESSAGE).length());
+    }
+
+    /**
+     * 玩家名回查应保留普通索引可用的等值查询, 不在列上包 LOWER()
+     */
+    @Test
+    void findByNameQueryDoesNotWrapIndexedColumn() {
+        String sql = SqlTemplates.load("sql/repository.sql").render("find_by_name", java.util.Map.of(
+                "players_table", "`players`",
+                "logs_table", "`logs`"
+        ));
+
+        assertTrue(sql.contains("WHERE player_name = ?"));
+        assertFalse(sql.contains("LOWER("));
     }
 }

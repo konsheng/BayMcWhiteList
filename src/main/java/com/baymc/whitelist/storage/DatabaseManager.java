@@ -18,6 +18,8 @@ public final class DatabaseManager implements AutoCloseable {
     private final PluginConfig.MysqlSettings settings;
     private HikariDataSource dataSource;
     private boolean ready;
+    private boolean closeRequested;
+    private int activeLeases;
 
     /**
      * 保存已校验的 MySQL 配置, 供后续启动连接池使用
@@ -30,7 +32,9 @@ public final class DatabaseManager implements AutoCloseable {
      * 重新创建连接池, 并确保所需数据表存在
      */
     public synchronized void start() throws SQLException {
-        close();
+        forceClose();
+        closeRequested = false;
+        activeLeases = 0;
 
         HikariConfig hikari = new HikariConfig();
         hikari.setPoolName("BayMcWhiteList-Hikari");
@@ -54,7 +58,7 @@ public final class DatabaseManager implements AutoCloseable {
             initializeSchema();
             ready = true;
         } catch (RuntimeException | SQLException exception) {
-            close();
+            forceClose();
             throw exception;
         }
     }
@@ -97,10 +101,64 @@ public final class DatabaseManager implements AutoCloseable {
      */
     @Override
     public synchronized void close() {
+        closeRequested = true;
+        forceClose();
+    }
+
+    /**
+     * 标记为旧运行期连接池, 等已捕获快照释放后再关闭
+     */
+    public synchronized void retire() {
+        closeRequested = true;
+        if (activeLeases == 0) {
+            forceClose();
+        }
+    }
+
+    /**
+     * 为一次命令或监听器快照保留连接池生命周期
+     */
+    public synchronized Lease lease() {
+        activeLeases++;
+        return new Lease(this);
+    }
+
+    private synchronized void releaseLease() {
+        if (activeLeases <= 0) {
+            return;
+        }
+        activeLeases--;
+        if (closeRequested && activeLeases == 0) {
+            forceClose();
+        }
+    }
+
+    private void forceClose() {
         ready = false;
         if (dataSource != null) {
             dataSource.close();
             dataSource = null;
+        }
+    }
+
+    /**
+     * 一次运行期快照持有的连接池引用
+     */
+    public static final class Lease implements AutoCloseable {
+        private final DatabaseManager database;
+        private boolean closed;
+
+        private Lease(DatabaseManager database) {
+            this.database = database;
+        }
+
+        @Override
+        public synchronized void close() {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            database.releaseLease();
         }
     }
 

@@ -63,6 +63,29 @@ class PluginConfigTest {
     }
 
     /**
+     * MySQL 主机名只接受单个主机, 允许普通域名, 容器服务名和括号 IPv6
+     */
+    @Test
+    void acceptsSingleMysqlHostForms() {
+        assertDoesNotThrow(() -> loadWithMysqlHost("127.0.0.1"));
+        assertDoesNotThrow(() -> loadWithMysqlHost("mysql-1.internal"));
+        assertDoesNotThrow(() -> loadWithMysqlHost("mysql_service"));
+        assertDoesNotThrow(() -> loadWithMysqlHost("[2001:db8::1]"));
+    }
+
+    /**
+     * MySQL 主机名不能携带端口, 用户信息, host list 或连接属性分隔符
+     */
+    @Test
+    void rejectsMysqlHostAuthorityAndListSeparators() {
+        assertThrows(IllegalArgumentException.class, () -> loadWithMysqlHost("127.0.0.1:3307"));
+        assertThrows(IllegalArgumentException.class, () -> loadWithMysqlHost("user@127.0.0.1"));
+        assertThrows(IllegalArgumentException.class, () -> loadWithMysqlHost("db1,db2"));
+        assertThrows(IllegalArgumentException.class, () -> loadWithMysqlHost("127.0.0.1;profileSQL=true"));
+        assertThrows(IllegalArgumentException.class, () -> loadWithMysqlHost("a.".repeat(128) + "a"));
+    }
+
+    /**
      * 最小空闲连接数不能大于最大连接池大小
      */
     @Test
@@ -72,5 +95,11 @@ class PluginConfigTest {
         config.set("storage.mysql.pool.minimum-idle", 3);
 
         assertThrows(IllegalArgumentException.class, () -> PluginConfig.load(config));
+    }
+
+    private static PluginConfig loadWithMysqlHost(String host) {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("storage.mysql.host", host);
+        return PluginConfig.load(config);
     }
 }

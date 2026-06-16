@@ -51,25 +51,33 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             @NotNull String[] args
     ) {
         if (args.length == 0) {
-            BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState();
-            if (hasPermission(runtime, sender, "baymcwhitelist.admin")) {
-                runtime.lang().send(sender, "usage.admin");
+            try (BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState()) {
+                if (hasPermission(runtime, sender, "baymcwhitelist.admin")) {
+                    runtime.lang().send(sender, "usage.admin");
+                }
             }
             return true;
         }
 
         BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState();
-        String subcommand = args[0].toLowerCase(Locale.ROOT);
-        switch (subcommand) {
-            case "generate" -> handleGenerate(runtime, sender, args);
-            case "status" -> handleStatus(runtime, sender, args);
-            case "remove" -> handleRemove(runtime, sender, args);
-            case "reload" -> handleReload(runtime, sender, args);
-            case "info" -> handleInfo(runtime, sender, args);
-            default -> {
-                if (hasPermission(runtime, sender, "baymcwhitelist.admin")) {
-                    runtime.lang().send(sender, "common.unknown-command");
+        boolean runtimeOwnedByAsync = false;
+        try {
+            String subcommand = args[0].toLowerCase(Locale.ROOT);
+            switch (subcommand) {
+                case "generate" -> handleGenerate(runtime, sender, args);
+                case "status" -> runtimeOwnedByAsync = handleStatus(runtime, sender, args);
+                case "remove" -> runtimeOwnedByAsync = handleRemove(runtime, sender, args);
+                case "reload" -> handleReload(runtime, sender, args);
+                case "info" -> handleInfo(runtime, sender, args);
+                default -> {
+                    if (hasPermission(runtime, sender, "baymcwhitelist.admin")) {
+                        runtime.lang().send(sender, "common.unknown-command");
+                    }
                 }
+            }
+        } finally {
+            if (!runtimeOwnedByAsync) {
+                runtime.close();
             }
         }
         return true;
@@ -130,17 +138,17 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     /**
      * 异步查询 MySQL, 并反馈某个玩家的白名单状态
      */
-    private void handleStatus(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
+    private boolean handleStatus(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
         if (!hasPermission(runtime, sender, "baymcwhitelist.status")) {
-            return;
+            return false;
         }
         if (!CommandBoundaries.hasExactArgumentCount(args, 2)) {
             runtime.lang().send(sender, "usage.status");
-            return;
+            return false;
         }
         LookupTarget target = resolveStatusTarget(runtime, sender, args[1]);
         if (target == null || !ensureDatabaseReady(runtime, sender)) {
-            return;
+            return false;
         }
 
         // SQL 在异步线程执行; 命令反馈通过感知发送者的调度器切回
@@ -162,24 +170,27 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 plugin.getLogger().severe("Failed to query whitelist status.");
                 exception.printStackTrace();
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "mysql.operation-failed"));
+            } finally {
+                runtime.close();
             }
         });
+        return true;
     }
 
     /**
      * 移除某个玩家的白名单记录, 并记录管理员操作日志
      */
-    private void handleRemove(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
+    private boolean handleRemove(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
         if (!hasPermission(runtime, sender, "baymcwhitelist.remove")) {
-            return;
+            return false;
         }
         if (!CommandBoundaries.hasExactArgumentCount(args, 2)) {
             runtime.lang().send(sender, "usage.remove");
-            return;
+            return false;
         }
         LookupTarget target = resolveRemoveTarget(runtime, sender, args[1]);
         if (target == null || !ensureDatabaseReady(runtime, sender)) {
-            return;
+            return false;
         }
 
         // 移除操作会访问 MySQL, 完成后再回到发送者对应的调度器发送消息
@@ -216,8 +227,11 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 plugin.getLogger().severe("Failed to remove whitelist record.");
                 exception.printStackTrace();
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "mysql.operation-failed"));
+            } finally {
+                runtime.close();
             }
         });
+        return true;
     }
 
     /**
@@ -233,7 +247,9 @@ public final class BayMcWhiteListCommand implements TabExecutor {
         }
         runtime.lang().send(sender, "admin.reload-started");
         boolean success = plugin.reloadBayMcWhiteList();
-        plugin.runtimeState().lang().send(sender, success ? "admin.reload-success" : "admin.reload-failed");
+        try (BayMcWhiteListPlugin.RuntimeState reloadedRuntime = plugin.runtimeState()) {
+            reloadedRuntime.lang().send(sender, success ? "admin.reload-success" : "admin.reload-failed");
+        }
     }
 
     /**

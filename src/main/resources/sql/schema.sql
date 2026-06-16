@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS ${players_table} (
   source_server VARCHAR(${server_name_length}),
   last_seen_at DATETIME,
   INDEX idx_player_uuid (player_uuid),
-  INDEX idx_player_name (player_name)
+  INDEX idx_player_name_used_at (player_name, used_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 
 -- name: create_whitelist_logs

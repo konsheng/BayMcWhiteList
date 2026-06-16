@@ -25,7 +25,11 @@ public record PluginConfig(
     private static final Pattern LANGUAGE_FILE_PATTERN = Pattern.compile("[A-Za-z0-9_.-]+\\.ya?ml");
     private static final Pattern DATABASE_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,64}");
     private static final Pattern SERVER_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
-    private static final Pattern MYSQL_HOST_PATTERN = Pattern.compile("[^\\s/?#\\\\]{1,255}");
+    private static final Pattern MYSQL_HOST_PATTERN = Pattern.compile(
+            "(?=.{1,255}$)(?:(?:[A-Za-z0-9](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9])?)"
+                    + "(?:\\.(?:[A-Za-z0-9](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9])?))*"
+                    + "|\\[[0-9A-Fa-f:.]+])"
+    );
 
     /**
      * 加载并校验所有支持的配置路径

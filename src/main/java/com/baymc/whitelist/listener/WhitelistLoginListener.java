@@ -33,48 +33,49 @@ public final class WhitelistLoginListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPreLogin(AsyncPlayerPreLoginEvent event) {
-        BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState();
-        if (runtime.config().server().mode() != PluginConfig.ServerMode.PROTECTED) {
-            return;
-        }
-        if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
-            return;
-        }
-
-        if (!runtime.databaseReady()) {
-            disallow(runtime, event, "join.database-unavailable");
-            return;
-        }
-
-        // AsyncPlayerPreLoginEvent 本身已在主线程/区域线程之外运行
-        // 因此可以在这里完成白名单查询, 再把登录结果返回给 Paper/Folia
-        PlayerIdentity identity = PlayerIdentity.fromPreLogin(
-                event.getUniqueId(),
-                event.getName(),
-                runtime.config().player().idType()
-        );
-
-        try {
-            if (runtime.repository().isWhitelisted(identity.key())) {
-                runtime.repository().updateLastSeen(identity.key(), now(runtime));
+        try (BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState()) {
+            if (runtime.config().server().mode() != PluginConfig.ServerMode.PROTECTED) {
+                return;
+            }
+            if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
                 return;
             }
 
-            runtime.repository().log(new WhitelistLogEntry(
-                    identity.key(),
-                    identity.name(),
-                    "JOIN_DENIED_NOT_WHITELISTED",
-                    null,
-                    runtime.config().server().name(),
-                    addressOf(event.getAddress()),
-                    null,
-                    now(runtime)
-            ));
-            disallow(runtime, event, "join.not-whitelisted");
-        } catch (SQLException exception) {
-            plugin.getLogger().severe("Failed to check whitelist status for " + event.getName() + ".");
-            exception.printStackTrace();
-            disallow(runtime, event, "join.database-unavailable");
+            if (!runtime.databaseReady()) {
+                disallow(runtime, event, "join.database-unavailable");
+                return;
+            }
+
+            // AsyncPlayerPreLoginEvent 本身已在主线程/区域线程之外运行
+            // 因此可以在这里完成白名单查询, 再把登录结果返回给 Paper/Folia
+            PlayerIdentity identity = PlayerIdentity.fromPreLogin(
+                    event.getUniqueId(),
+                    event.getName(),
+                    runtime.config().player().idType()
+            );
+
+            try {
+                if (runtime.repository().isWhitelisted(identity.key())) {
+                    runtime.repository().updateLastSeen(identity.key(), now(runtime));
+                    return;
+                }
+
+                runtime.repository().log(new WhitelistLogEntry(
+                        identity.key(),
+                        identity.name(),
+                        "JOIN_DENIED_NOT_WHITELISTED",
+                        null,
+                        runtime.config().server().name(),
+                        addressOf(event.getAddress()),
+                        null,
+                        now(runtime)
+                ));
+                disallow(runtime, event, "join.not-whitelisted");
+            } catch (SQLException exception) {
+                plugin.getLogger().severe("Failed to check whitelist status for " + event.getName() + ".");
+                exception.printStackTrace();
+                disallow(runtime, event, "join.database-unavailable");
+            }
         }
     }
 

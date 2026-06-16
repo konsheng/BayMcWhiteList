@@ -73,10 +73,9 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
      * @return 只有新的数据库管理器连接成功时才返回 true
      */
     public synchronized boolean reloadBayMcWhiteList() {
-        reloadConfig();
         try {
-            reloadRuntime();
-            return isDatabaseReady();
+            reloadConfig();
+            return reloadRuntime();
         } catch (RuntimeException exception) {
             getLogger().severe("BayMcWhiteList failed to reload.");
             exception.printStackTrace();
@@ -132,12 +131,15 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
      * <p>异步任务会继续持有这份快照, 避免 reload 期间同一次操作混用新旧配置, 语言或数据库仓库
      */
     public synchronized RuntimeState runtimeState() {
+        DatabaseManager currentDatabase = databaseManager;
+        DatabaseManager.Lease databaseLease = currentDatabase == null ? null : currentDatabase.lease();
         return new RuntimeState(
                 pluginConfig,
                 langManager,
                 platformScheduler,
                 whitelistRepository,
                 inviteCodeService,
+                databaseLease,
                 isDatabaseReady()
         );
     }
@@ -145,7 +147,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
     /**
      * 根据当前 Bukkit 配置重建所有运行期服务
      */
-    private synchronized void reloadRuntime() {
+    private synchronized boolean reloadRuntime() {
         PluginConfig loadedConfig = PluginConfig.load(getConfig());
         ensureBundledLanguage(loadedConfig.language().file());
 
@@ -154,10 +156,16 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
 
         DatabaseManager loadedDatabase = new DatabaseManager(loadedConfig.mysql());
         boolean databaseReady = connect(loadedDatabase);
+        DatabaseManager oldDatabase = databaseManager;
+
+        if (shouldPreserveCurrentRuntime(databaseReady, oldDatabase != null && oldDatabase.isReady())) {
+            loadedDatabase.close();
+            getLogger().warning("Reload failed to connect to the new database. Keeping the previous runtime active.");
+            return false;
+        }
 
         // 即使 MySQL 不可用也保持插件启用: 登录服可以显示配置好的"未就绪"提示
         // 受保护服务器则会按失败关闭策略拒绝进入, 避免误放未知玩家
-        DatabaseManager oldDatabase = databaseManager;
         pluginConfig = loadedConfig;
         langManager = loadedLang;
         databaseManager = loadedDatabase;
@@ -165,7 +173,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         inviteCodeService = new InviteCodeService(loadedConfig.code());
 
         if (oldDatabase != null && oldDatabase != loadedDatabase) {
-            oldDatabase.close();
+            oldDatabase.retire();
         }
 
         if (DEFAULT_SECRET.equals(loadedConfig.code().secret())) {
@@ -174,6 +182,11 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         if (!databaseReady) {
             getLogger().warning("Database is not ready. Login servers cannot verify codes and protected servers will reject joins.");
         }
+        return databaseReady;
+    }
+
+    static boolean shouldPreserveCurrentRuntime(boolean loadedDatabaseReady, boolean currentDatabaseReady) {
+        return !loadedDatabaseReady && currentDatabaseReady;
     }
 
     /**
@@ -238,6 +251,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
      * @param scheduler 用于切换异步任务和玩家/全局调度器的适配器
      * @param repository 与当前数据库管理器绑定的仓库
      * @param inviteCodeService 与当前邀请码配置绑定的服务
+     * @param databaseLease 保持当前数据库管理器存活的快照引用
      * @param databaseReady 捕获快照时数据库是否可用
      */
     public record RuntimeState(
@@ -246,7 +260,14 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
             PlatformScheduler scheduler,
             WhitelistRepository repository,
             InviteCodeService inviteCodeService,
+            DatabaseManager.Lease databaseLease,
             boolean databaseReady
-    ) {
+    ) implements AutoCloseable {
+        @Override
+        public void close() {
+            if (databaseLease != null) {
+                databaseLease.close();
+            }
+        }
     }
 }

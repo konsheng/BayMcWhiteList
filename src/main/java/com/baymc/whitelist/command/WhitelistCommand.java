@@ -41,47 +41,61 @@ public final class WhitelistCommand implements TabExecutor {
             @NotNull String[] args
     ) {
         BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState();
-        Player player = sender instanceof Player playerSender ? playerSender : null;
-        CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
-                player != null,
-                player != null && player.hasPermission("baymcwhitelist.use"),
-                runtime.config().server().mode(),
-                args.length
-        );
-        switch (decision) {
-            case ONLY_PLAYER -> runtime.lang().send(sender, "common.only-player");
-            case NO_PERMISSION -> runtime.lang().send(sender, "common.no-permission");
-            case LOGIN_SERVER_ONLY -> runtime.lang().send(sender, "code.login-server-only");
-            case USAGE -> runtime.lang().send(sender, "usage.whitelist");
-            case OK -> {
+        boolean runtimeOwnedByAsync = false;
+        try {
+            Player player = sender instanceof Player playerSender ? playerSender : null;
+            CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
+                    player != null,
+                    player != null && player.hasPermission("baymcwhitelist.use"),
+                    runtime.config().server().mode(),
+                    args.length
+            );
+            switch (decision) {
+                case ONLY_PLAYER -> runtime.lang().send(sender, "common.only-player");
+                case NO_PERMISSION -> runtime.lang().send(sender, "common.no-permission");
+                case LOGIN_SERVER_ONLY -> runtime.lang().send(sender, "code.login-server-only");
+                case USAGE -> runtime.lang().send(sender, "usage.whitelist");
+                case OK -> {
+                }
+            }
+            if (decision != CommandBoundaries.WhitelistDecision.OK) {
+                return true;
+            }
+
+            // 先快照异步数据库任务需要的所有玩家数据, Folia 下后续不能在
+            // 连接池线程中读取玩家实体状态
+            PlayerIdentity identity = PlayerIdentity.fromPlayer(player, runtime.config().player().idType());
+            VerificationResult result = runtime.inviteCodeService().verify(args[0], identity.key());
+            if (result.status() == VerificationResult.Status.INVALID_FORMAT) {
+                runtime.lang().send(player, "code.invalid-format", Map.of("code_prefix", runtime.config().code().prefix()));
+                runtimeOwnedByAsync = logAttempt(runtime, identity, args[0], "VERIFY_INVALID_FORMAT", "invalid_format", addressOf(player));
+                return true;
+            }
+            if (result.status() == VerificationResult.Status.INVALID_OR_EXPIRED) {
+                runtime.lang().send(player, "code.invalid-or-expired");
+                runtimeOwnedByAsync = logAttempt(runtime, identity, args[0], "VERIFY_INVALID_OR_EXPIRED", "invalid_or_expired", addressOf(player));
+                return true;
+            }
+            if (!runtime.databaseReady()) {
+                runtime.lang().send(player, "mysql.not-ready");
+                return true;
+            }
+
+            String ip = addressOf(player);
+            runtime.scheduler().runAsync(() -> {
+                try {
+                    verifyAndPersist(runtime, player, identity, result, ip);
+                } finally {
+                    runtime.close();
+                }
+            });
+            runtimeOwnedByAsync = true;
+            return true;
+        } finally {
+            if (!runtimeOwnedByAsync) {
+                runtime.close();
             }
         }
-        if (decision != CommandBoundaries.WhitelistDecision.OK) {
-            return true;
-        }
-
-        // 先快照异步数据库任务需要的所有玩家数据, Folia 下后续不能在
-        // 连接池线程中读取玩家实体状态
-        PlayerIdentity identity = PlayerIdentity.fromPlayer(player, runtime.config().player().idType());
-        VerificationResult result = runtime.inviteCodeService().verify(args[0], identity.key());
-        if (result.status() == VerificationResult.Status.INVALID_FORMAT) {
-            runtime.lang().send(player, "code.invalid-format", Map.of("code_prefix", runtime.config().code().prefix()));
-            logAttempt(runtime, identity, args[0], "VERIFY_INVALID_FORMAT", "invalid_format", addressOf(player));
-            return true;
-        }
-        if (result.status() == VerificationResult.Status.INVALID_OR_EXPIRED) {
-            runtime.lang().send(player, "code.invalid-or-expired");
-            logAttempt(runtime, identity, args[0], "VERIFY_INVALID_OR_EXPIRED", "invalid_or_expired", addressOf(player));
-            return true;
-        }
-        if (!runtime.databaseReady()) {
-            runtime.lang().send(player, "mysql.not-ready");
-            return true;
-        }
-
-        String ip = addressOf(player);
-        runtime.scheduler().runAsync(() -> verifyAndPersist(runtime, player, identity, result, ip));
-        return true;
     }
 
     /**
@@ -147,7 +161,7 @@ public final class WhitelistCommand implements TabExecutor {
     /**
      * 尽力记录无效提交的审计日志
      */
-    private void logAttempt(
+    private boolean logAttempt(
             BayMcWhiteListPlugin.RuntimeState runtime,
             PlayerIdentity identity,
             String code,
@@ -156,7 +170,7 @@ public final class WhitelistCommand implements TabExecutor {
             String ip
     ) {
         if (!runtime.databaseReady()) {
-            return;
+            return false;
         }
         runtime.scheduler().runAsync(() -> {
             try {
@@ -172,8 +186,11 @@ public final class WhitelistCommand implements TabExecutor {
                 ));
             } catch (SQLException exception) {
                 plugin.getLogger().warning("Failed to write whitelist attempt log: " + exception.getMessage());
+            } finally {
+                runtime.close();
             }
         });
+        return true;
     }
 
     /**
