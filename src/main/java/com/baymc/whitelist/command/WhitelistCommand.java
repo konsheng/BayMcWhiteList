@@ -63,7 +63,7 @@ public final class WhitelistCommand implements TabExecutor {
         PlayerIdentity identity = PlayerIdentity.fromPlayer(player, plugin.pluginConfig().player().idType());
         VerificationResult result = plugin.inviteCodeService().verify(args[0], identity.key());
         if (result.status() == VerificationResult.Status.INVALID_FORMAT) {
-            plugin.lang().send(player, "code.invalid-format", Map.of("prefix", plugin.pluginConfig().code().prefix()));
+            plugin.lang().send(player, "code.invalid-format", Map.of("code_prefix", plugin.pluginConfig().code().prefix()));
             logAttempt(identity, args[0], "VERIFY_INVALID_FORMAT", "invalid_format", addressOf(player));
             return true;
         }

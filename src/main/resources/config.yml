@@ -2,47 +2,114 @@
 # MySQL 是白名单状态的唯一数据源, 除非有其他组件负责同步数据库
 # 否则不要在受保护服务器上启用原版白名单
 
+# 语言文件配置
+# 插件会从 plugins/BayMcWhiteList/lang/ 目录加载该文件
+# 文件名只允许使用字母, 数字, 下划线, 点, 横线, 并且必须以 yml 或 yaml 结尾
+language:
+  file: "zh_CN.yml"
+
+# 当前服务器配置
+# 每台安装本插件的服务器都需要按自身用途配置 name 和 mode
+server:
+  # 当前服务器在白名单网络中的唯一名称, 会写入 MySQL 审计日志和白名单来源字段
+  # 多端部署时建议每台服务器使用不同名称, 例如 login, survival-1, lobby-1
+  name: "login"
+
+  # 当前服务器的工作模式
+  # login: 登录/验证服, 允许玩家进入并使用 /whitelist <邀请码> 完成白名单验证
+  # protected: 主服或玩法服, 玩家加入前必须已存在于 MySQL 白名单表中
+  # protected 模式下如果数据库不可用, 会拒绝玩家加入, 避免误放未过白玩家
+  mode: "login"
+
+# 邀请码生成和校验配置
+# 所有登录服, 网站, 机器人或其他邀请码生成端必须保持本节配置一致
 code:
   # 玩家看到的邀请码格式类似 BAYMC-XXXXXXXX
+  # 该值会自动转为大写, 只允许字母, 数字和下划线, 长度 1 到 24
+  # 前缀会参与 HMAC 签名, 修改后旧前缀的邀请码将无法继续匹配
   prefix: "BAYMC"
 
   # 生产环境使用前必须在每台服务器上修改, 所有生成 BayMC 邀请码的
   # 服务器, 网站或机器人都必须使用同一个密钥
+  # 该值不能为空, 建议使用足够长的随机字符串, 不要公开给玩家
+  # 修改密钥后, 修改前生成的邀请码会立即失效
   secret: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
 
   # 使用 RFC4648 Base32 字符: A-Z 和 2-7
+  # 允许范围 4 到 64, 数值越大邀请码越长, 也越难被猜测
   suffix-length: 8
 
   # 验证时会按配置时区检查今天以及前 valid-days - 1 个自然日
+  # 允许范围 1 到 365, 例如 7 表示当天和往前 6 个自然日都可验证
   valid-days: 7
+
+  # 邀请码签发日期和过期时间使用的时区
+  # 必须是 Java ZoneId 支持的时区名称, 例如 Asia/Shanghai 或 UTC
+  # 所有生成和验证邀请码的组件必须使用同一个时区
   timezone: "Asia/Shanghai"
+
+  # 是否区分玩家输入的邀请码大小写
+  # false 时玩家可以输入小写邀请码, 插件会按大写进行比较
+  # true 时必须与生成结果大小写完全一致
   case-sensitive: false
 
+# 玩家身份标识配置
+# 该配置决定邀请码绑定到 UUID 还是玩家名, 也决定 MySQL 白名单唯一键
 player:
   # 正版 online-mode 服务器建议使用 uuid, 离线服或外置登录网络中
   # 如果玩家名才是稳定账号标识, 可以使用 name
+  # 可选值: uuid, name
+  # uuid 模式下管理员用玩家名生成邀请码时, 目标玩家必须在线, 或者直接输入 UUID
+  # name 模式下玩家名会转为小写作为白名单键
   id-type: "uuid"
 
+# 存储配置
+# 白名单记录和审计日志都会写入 MySQL, 本插件不会把白名单状态保存到本地文件
 storage:
   mysql:
+    # MySQL 服务器地址, 可以是 IP, 域名或容器服务名
     host: "127.0.0.1"
+
+    # MySQL 端口, 允许范围 1 到 65535
     port: 3306
+
+    # 插件使用的数据库名, 启动前需要确保该数据库已存在且账号有权限访问
     database: "baymc"
+
+    # MySQL 用户名
     username: "root"
+
+    # MySQL 密码
     password: "password"
-    table-prefix: "baymc_"
+
+    # 插件数据表前缀, 最终表名为 table-prefix + whitelist_players 和 table-prefix + whitelist_logs
+    # 只允许字母, 数字和下划线, 最大长度 32, 可以留空
+    # 多个网络或测试服共用同一个数据库时, 建议使用不同表前缀隔离数据
+    table-prefix: "baymcwhitelist_"
+
+    # 是否在 JDBC 连接中启用 SSL
+    # 如果数据库要求加密连接则改为 true, 否则保持 false
     use-ssl: false
+
+    # HikariCP 连接池配置
+    # 时间单位均为毫秒, 如果不确定含义建议保持默认值
     pool:
+      # 连接池最大连接数, 允许范围 1 到 64
+      # 多服务器共用同一 MySQL 时需要结合数据库连接上限一起规划
       maximum-pool-size: 10
+
+      # 空闲时尽量保留的最小连接数, 允许范围 0 到 64
+      # 不能大于 maximum-pool-size
       minimum-idle: 2
+
+      # 从连接池借出连接时的最长等待时间, 允许范围 250 到 120000
+      # 超时后本次数据库操作会失败
       connection-timeout: 10000
+
+      # 空闲连接允许保留的最长时间, 允许范围 10000 到 3600000
+      # 只有连接数高于 minimum-idle 时才会回收空闲连接
       idle-timeout: 600000
+
+      # 单个连接的最长生命周期, 允许范围 30000 到 7200000
+      # 建议小于 MySQL 服务端 wait_timeout, 避免拿到已被服务端关闭的连接
       max-lifetime: 1800000
-
-server:
-  # 登录/验证服使用 login, 需要拒绝未写入 MySQL 玩家进入的主服或玩法服使用 protected
-  name: "login"
-  mode: "login"
-
-language:
-  file: "zh_CN.yml"

@@ -239,7 +239,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 "version", plugin.getPluginMeta().getVersion(),
                 "server_name", config.server().name(),
                 "server_mode", state(config.server().mode() == PluginConfig.ServerMode.LOGIN ? "state.mode-login" : "state.mode-protected"),
-                "prefix", config.code().prefix(),
+                "code_prefix", config.code().prefix(),
                 "valid_days", String.valueOf(config.code().validDays()),
                 "id_type", state(config.player().idType() == PluginConfig.PlayerIdType.UUID ? "state.id-type-uuid" : "state.id-type-name"),
                 "database_status", state(plugin.isDatabaseReady() ? "state.database-ready" : "state.database-unavailable")

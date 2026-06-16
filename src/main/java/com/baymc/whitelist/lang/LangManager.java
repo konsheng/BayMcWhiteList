@@ -18,11 +18,13 @@ import java.util.Map;
  * 从 lang/*.yml 加载 MiniMessage 文本, 并发送给 Bukkit 命令来源
  */
 public final class LangManager {
+    private static final String PREFIX_PATH = "prefix";
     private static final String MISSING_KEY_PATH = "common.missing-language-key";
 
     private final JavaPlugin plugin;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private YamlConfiguration language;
+    private String prefix = "";
 
     /**
      * 保存插件实例, 用于从插件数据目录中解析语言文件
@@ -37,6 +39,7 @@ public final class LangManager {
     public void reload(String languageFileName) {
         File file = new File(plugin.getDataFolder(), "lang/" + languageFileName);
         language = YamlConfiguration.loadConfiguration(file);
+        prefix = language.getString(PREFIX_PATH, "");
     }
 
     /**
@@ -138,8 +141,9 @@ public final class LangManager {
     /**
      * 将简单字符串占位符转换为 MiniMessage 标签解析器
      */
-    private static TagResolver resolver(Map<String, String> placeholders) {
+    private TagResolver resolver(Map<String, String> placeholders) {
         List<TagResolver> resolvers = new ArrayList<>();
+        resolvers.add(Placeholder.parsed(PREFIX_PATH, prefix == null ? "" : prefix));
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {
             resolvers.add(Placeholder.unparsed(entry.getKey(), entry.getValue() == null ? "" : entry.getValue()));
         }

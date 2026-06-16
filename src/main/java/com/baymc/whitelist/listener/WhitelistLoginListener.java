@@ -83,7 +83,7 @@ public final class WhitelistLoginListener implements Listener {
     private void disallow(AsyncPlayerPreLoginEvent event, String languageKey) {
         Component message = plugin.lang().joined(languageKey, Map.of(
                 "player", event.getName(),
-                "prefix", plugin.pluginConfig().code().prefix()
+                "code_prefix", plugin.pluginConfig().code().prefix()
         ));
         event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, message);
     }
