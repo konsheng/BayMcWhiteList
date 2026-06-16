@@ -1,31 +1,60 @@
 # BayMcWhiteList
 
-BayMcWhiteList 是一个 Paper/Folia 白名单插件。登录服允许玩家输入邀请码完成验证，主服和其他受保护子服会在预登录阶段查询 MySQL，没有白名单记录的玩家会被拒绝加入。
+Paper / Folia `26.1.2` 白名单插件，BayMcWhiteList 通过邀请码验证玩家并将白名单状态写入 MySQL，登录服负责验证，主服和受保护子服负责拦截未过白玩家
 
-## 环境要求
+## 🔂 功能特性
+- 支持玩家在登录服使用 `/whitelist <邀请码>` 完成白名单验证
+- 支持受保护服务器在预登录阶段查询 MySQL，没有白名单记录的玩家会被拒绝加入
+- 支持 `login` 登录服模式和 `protected` 受保护服务器模式，适合多端网络服部署
+- 支持 `BAYMC-XXXXXXXX` 格式邀请码，前缀和后缀长度可配置
+- 邀请码后缀使用 `HMAC-SHA256` 按玩家标识、签发日期和前缀计算生成
+- 支持七天自然日有效期窗口，默认检查当天和前 `valid-days - 1` 天
+- 支持 `uuid` 和 `name` 两种玩家标识模式，适配正版服和离线/外置登录网络
+- 支持 MySQL 作为白名单状态唯一数据源
+- 支持 HikariCP 连接池，并自动创建白名单记录表和审计日志表
+- 支持管理员生成邀请码、查询状态、移除白名单、重载配置和查看运行信息
+- 支持 MiniMessage 语言文件，所有玩家可见提示都可在 `lang/zh_CN.yml` 中配置
+- 支持 Paper 和 Folia 调度模型，数据库操作在异步线程执行
 
-- Paper API: `26.1.2`
-- Java: `25+`
-- 数据库: MySQL
-- 构建: Gradle wrapper
+## 🌋 运行环境
+- Java `25+`
+- Paper API `26.1.2`
+- 推荐服务端版本：Paper / Folia `26.1.2`
+- 数据库：`MySQL`
+- 构建工具：Gradle Wrapper
 
-## 构建
+插件依赖 HikariCP 与 MySQL Connector/J，发布 jar 会通过 Shadow 打包所需运行依赖
 
-```powershell
-.\gradlew.bat clean build
-```
+## 🖥️ 服务端支持
 
-构建产物：
+| 服务端 | 支持情况 |
+|---|---|
+| Paper 26.1.2 | ✅ 支持 |
+| Folia 26.1.2 | ✅ 支持 |
+| Leaf 26.1.2 | ⚠️ 未完整测试 |
+| Purpur 26.1.2 | ⚠️ 未完整测试 |
+| Pufferfish 26.1.2 | ⚠️ 未完整测试 |
+| Spigot | ❌ 不支持 |
+| CraftBukkit | ❌ 不支持 |
 
-```text
-build/libs/BayMcWhiteList-1.0-SNAPSHOT.jar
-```
+其他服务端分支尚未完整测试，请自行研究测试
 
-该 jar 已通过 Shadow 打入 HikariCP 与 MySQL Connector/J。
+## 📦 安装
+下载地址：[GitHub Releases](https://github.com/konsheng/BayMcWhiteList/releases)
 
-## 部署模式
+- 在 Releases 的 Assets 中下载最新版 `BayMcWhiteList-*.jar`
+- 确认服务端使用 Java `25+`，并运行 Paper / Folia `26.1.2`
+- 安装或替换 jar 前先关闭服务端
+- 将 `BayMcWhiteList-*.jar` 放入登录服和需要保护的主服/子服 `plugins` 目录
+- 启动一次服务端，等待生成 `config.yml` 和 `lang/`
+- 修改 `plugins/BayMcWhiteList/config.yml` 中的 MySQL 连接信息
+- 按需修改 `plugins/BayMcWhiteList/lang/zh_CN.yml` 中的 MiniMessage 提示文本
+- 将所有服务器的 `code.secret`、`code.prefix`、`code.timezone` 和 `player.id-type` 保持一致
+- 登录服设置 `server.mode: "login"`，主服和受保护子服设置 `server.mode: "protected"`
+- 修改配置或语言文件后执行 `/baymcwhitelist reload`，也可以重启服务端
+- 给管理员或权限组分配需要的 `baymcwhitelist.*` 权限
 
-登录服配置：
+登录服配置示例：
 
 ```yaml
 server:
@@ -33,7 +62,7 @@ server:
   mode: "login"
 ```
 
-主服/子服配置：
+受保护服务器配置示例：
 
 ```yaml
 server:
@@ -41,97 +70,106 @@ server:
   mode: "protected"
 ```
 
-`login` 模式下，玩家可以进入服务器并使用：
+## ⌨️ 命令
+
+主命令：
+- `/baymcwhitelist`
+- 别名：`/bmwl`
+- 玩家验证命令：`/whitelist`
+
+参数约定：
+- `<>` 必填
+- `[]` 选填
+
+命令列表：
+- **`/whitelist <邀请码>`**<br>
+  权限：`baymcwhitelist.use`<br>
+  在登录服提交邀请码并写入 MySQL 白名单记录，需要游戏内执行
+- **`/baymcwhitelist generate <玩家名|UUID>`**<br>
+  权限：`baymcwhitelist.generate`<br>
+  为指定玩家生成绑定邀请码，不直接写入白名单记录
+- **`/baymcwhitelist status <玩家名|UUID>`**<br>
+  权限：`baymcwhitelist.status`<br>
+  查询指定玩家当前白名单状态和记录信息
+- **`/baymcwhitelist remove <玩家名|UUID>`**<br>
+  权限：`baymcwhitelist.remove`<br>
+  移除指定玩家的白名单记录，并写入管理员操作日志
+- **`/baymcwhitelist reload`**<br>
+  权限：`baymcwhitelist.reload`<br>
+  重载配置、语言文件和数据库连接
+- **`/baymcwhitelist info`**<br>
+  权限：`baymcwhitelist.info`<br>
+  查看插件版本、服务器模式、邀请码配置、玩家标识模式和数据库状态
+
+UUID 模式下，`generate <玩家名>` 只能给当前在线玩家生成；如果玩家不在线，可以直接传 UUID
+
+## 🔐 权限
+
+- **`baymcwhitelist.use`**<br>
+  默认：`true`<br>
+  允许玩家使用 `/whitelist <邀请码>` 完成白名单验证
+- **`baymcwhitelist.admin`**<br>
+  默认：`op`<br>
+  允许访问管理员命令入口和未知子命令帮助提示
+- **`baymcwhitelist.generate`**<br>
+  默认：`op`<br>
+  允许为玩家生成绑定邀请码
+- **`baymcwhitelist.status`**<br>
+  默认：`op`<br>
+  允许查询玩家白名单状态
+- **`baymcwhitelist.remove`**<br>
+  默认：`op`<br>
+  允许移除玩家白名单记录
+- **`baymcwhitelist.reload`**<br>
+  默认：`op`<br>
+  允许重载配置、语言文件和数据库连接
+- **`baymcwhitelist.info`**<br>
+  默认：`op`<br>
+  允许查看插件运行信息
+
+## 🛡️ 数据安全
+
+- 白名单状态只写入 MySQL，不依赖原版白名单文件
+- 受保护服务器在数据库不可用时会拒绝玩家加入，避免误放未知玩家
+- 邀请码按玩家标识签名生成，不能被其他玩家共用
+- 未使用的邀请码不会提前写入数据库，验证成功后才记录白名单状态
+- 生产环境必须修改默认 `code.secret`，所有生成或校验邀请码的组件必须使用同一密钥
+- MySQL 表名前缀会校验为安全字符后再用于 SQL 标识符
+- 登录检查、验证结果和管理员移除操作会写入审计日志
+
+## 🧾 审计
+
+审计用于记录白名单验证、加入拦截和管理员操作，方便后续追溯和排查问题
+
+- 记录玩家标识、玩家名、动作类型、邀请码、服务器名、IP 和时间
+- 覆盖验证成功、重复验证、无效邀请码提交、受保护服务器拒绝加入和管理员移除
+- 日志写入 MySQL 的 `baymc_whitelist_logs` 表
+- 白名单状态写入 MySQL 的 `baymc_whitelist_players` 表
+
+## 🛠️ 构建
+
+Windows：
+
+```powershell
+./gradlew.bat clean build
+```
+
+Linux：
+
+```bash
+./gradlew clean build
+```
+
+本地产物：
 
 ```text
-/whitelist BAYMC-XXXXXXXX
+build/libs/BayMcWhiteList-1.0.0-SNAPSHOT.jar
 ```
 
-`protected` 模式下，玩家加入前会查询 MySQL。没有白名单记录或数据库不可用时都会拒绝加入，避免主服误放人。
+## 📄 许可证
 
-## 邀请码规则
+当前仓库暂未包含 `LICENSE` 文件，许可证信息待补充
 
-默认格式：
+## 📊 bStats
 
-```text
-BAYMC-XXXXXXXX
-```
-
-后缀由以下内容签名生成：
-
-```text
-HMAC-SHA256(secret, playerKey + ":" + issueDate + ":" + prefix)
-```
-
-验证时会检查今天和之前 `valid-days - 1` 个自然日。默认 `valid-days: 7`，也就是签发当天到第 7 个自然日仍有效，第 8 个自然日失效。
-
-## 关键配置
-
-所有服务器必须使用相同的：
-
-```yaml
-code:
-  prefix: "BAYMC"
-  secret: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
-```
-
-生产环境必须修改 `secret`。如果网站、机器人也要生成邀请码，它们需要使用同一个 `secret`、`prefix`、`timezone` 和玩家标识规则。
-
-玩家标识：
-
-```yaml
-player:
-  id-type: "uuid"
-```
-
-- 正版/online-mode 网络建议使用 `uuid`
-- 离线或外置登录网络可以改为 `name`
-
-## 命令
-
-玩家：
-
-```text
-/whitelist <邀请码>
-```
-
-管理员：
-
-```text
-/baymcwhitelist generate <玩家名|UUID>
-/baymcwhitelist status <玩家名|UUID>
-/baymcwhitelist remove <玩家名|UUID>
-/baymcwhitelist reload
-/baymcwhitelist info
-```
-
-UUID 模式下，`generate <玩家名>` 只能给当前在线玩家生成；如果玩家不在线，可以直接传 UUID。
-
-## 语言文件
-
-所有玩家可见提示都在：
-
-```text
-plugins/BayMcWhiteList/lang/zh_CN.yml
-```
-
-语言格式使用 MiniMessage，不使用 `&a` 颜色码。
-
-## 数据库
-
-插件启动时会自动创建：
-
-```text
-baymc_whitelist_players
-baymc_whitelist_logs
-```
-
-表名前缀由：
-
-```yaml
-storage:
-  mysql:
-    table-prefix: "baymc_"
-```
-
-控制。
+当前暂未接入 bStats，后续提供真实插件 ID 后再补充统计徽章
