@@ -24,6 +24,7 @@ dependencies {
 
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("com.mysql:mysql-connector-j:9.7.0")
+    implementation("org.bstats:bstats-bukkit:3.2.1")
 
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -65,6 +66,8 @@ tasks.shadowJar {
     // 可部署的插件产物是已经打包依赖的插件包
     archiveClassifier.set("")
     mergeServiceFiles()
+    // 重定位 bStats 包名, 避免与其他同样使用 bStats 的插件冲突
+    relocate("org.bstats", "com.baymc.whitelist.bstats")
 }
 
 tasks.build {

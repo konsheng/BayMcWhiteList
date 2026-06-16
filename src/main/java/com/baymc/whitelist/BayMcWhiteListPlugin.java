@@ -9,6 +9,7 @@ import com.baymc.whitelist.listener.WhitelistLoginListener;
 import com.baymc.whitelist.scheduler.PlatformScheduler;
 import com.baymc.whitelist.storage.DatabaseManager;
 import com.baymc.whitelist.storage.WhitelistRepository;
+import org.bstats.bukkit.Metrics;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -24,6 +25,7 @@ import java.util.Objects;
  * 都使用同一份已校验的配置快照
  */
 public final class BayMcWhiteListPlugin extends JavaPlugin {
+    private static final int BSTATS_PLUGIN_ID = 32035;
     private static final String DEFAULT_SECRET = "CHANGE_ME_TO_A_LONG_RANDOM_SECRET";
 
     private PluginConfig pluginConfig;
@@ -52,6 +54,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
 
         registerCommands();
         getServer().getPluginManager().registerEvents(new WhitelistLoginListener(this), this);
+        startMetrics();
     }
 
     /**
@@ -185,6 +188,13 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         PluginCommand whitelist = Objects.requireNonNull(getCommand("whitelist"), "whitelist command missing");
         whitelist.setExecutor(whitelistCommand);
         whitelist.setTabCompleter(whitelistCommand);
+    }
+
+    /**
+     * 启动 bStats 匿名统计上报
+     */
+    private void startMetrics() {
+        new Metrics(this, BSTATS_PLUGIN_ID);
     }
 
     /**

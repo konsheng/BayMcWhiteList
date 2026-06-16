@@ -172,4 +172,4 @@ build/libs/BayMcWhiteList-1.0.0-SNAPSHOT.jar
 
 ## 📊 bStats
 
-当前暂未接入 bStats，后续提供真实插件 ID 后再补充统计徽章
+[![bStats](https://bstats.org/signatures/bukkit/BayMcWhiteList.svg)](https://bstats.org/plugin/bukkit/BayMcWhiteList/32035)
