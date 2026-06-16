@@ -33,15 +33,16 @@ public final class WhitelistLoginListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPreLogin(AsyncPlayerPreLoginEvent event) {
-        if (plugin.pluginConfig().server().mode() != PluginConfig.ServerMode.PROTECTED) {
+        BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState();
+        if (runtime.config().server().mode() != PluginConfig.ServerMode.PROTECTED) {
             return;
         }
         if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
             return;
         }
 
-        if (!plugin.isDatabaseReady()) {
-            disallow(event, "join.database-unavailable");
+        if (!runtime.databaseReady()) {
+            disallow(runtime, event, "join.database-unavailable");
             return;
         }
 
@@ -50,40 +51,40 @@ public final class WhitelistLoginListener implements Listener {
         PlayerIdentity identity = PlayerIdentity.fromPreLogin(
                 event.getUniqueId(),
                 event.getName(),
-                plugin.pluginConfig().player().idType()
+                runtime.config().player().idType()
         );
 
         try {
-            if (plugin.repository().isWhitelisted(identity.key())) {
-                plugin.repository().updateLastSeen(identity.key(), now());
+            if (runtime.repository().isWhitelisted(identity.key())) {
+                runtime.repository().updateLastSeen(identity.key(), now(runtime));
                 return;
             }
 
-            plugin.repository().log(new WhitelistLogEntry(
+            runtime.repository().log(new WhitelistLogEntry(
                     identity.key(),
                     identity.name(),
                     "JOIN_DENIED_NOT_WHITELISTED",
                     null,
-                    plugin.pluginConfig().server().name(),
+                    runtime.config().server().name(),
                     addressOf(event.getAddress()),
                     null,
-                    now()
+                    now(runtime)
             ));
-            disallow(event, "join.not-whitelisted");
+            disallow(runtime, event, "join.not-whitelisted");
         } catch (SQLException exception) {
             plugin.getLogger().severe("Failed to check whitelist status for " + event.getName() + ".");
             exception.printStackTrace();
-            disallow(event, "join.database-unavailable");
+            disallow(runtime, event, "join.database-unavailable");
         }
     }
 
     /**
      * 构建配置中的踢出消息, 并拒绝本次登录
      */
-    private void disallow(AsyncPlayerPreLoginEvent event, String languageKey) {
-        Component message = plugin.lang().joined(languageKey, Map.of(
+    private void disallow(BayMcWhiteListPlugin.RuntimeState runtime, AsyncPlayerPreLoginEvent event, String languageKey) {
+        Component message = runtime.lang().joined(languageKey, Map.of(
                 "player", event.getName(),
-                "code_prefix", plugin.pluginConfig().code().prefix()
+                "code_prefix", runtime.config().code().prefix()
         ));
         event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, message);
     }
@@ -91,8 +92,8 @@ public final class WhitelistLoginListener implements Listener {
     /**
      * 审计日志和最后出现时间都使用配置中的时区
      */
-    private LocalDateTime now() {
-        return LocalDateTime.now(plugin.pluginConfig().code().zoneId());
+    private static LocalDateTime now(BayMcWhiteListPlugin.RuntimeState runtime) {
+        return LocalDateTime.now(runtime.config().code().zoneId());
     }
 
     /**

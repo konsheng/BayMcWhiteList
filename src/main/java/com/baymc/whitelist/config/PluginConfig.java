@@ -23,6 +23,9 @@ public record PluginConfig(
     private static final Pattern CODE_PREFIX_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,24}");
     private static final Pattern TABLE_PREFIX_PATTERN = Pattern.compile("[A-Za-z0-9_]{0,32}");
     private static final Pattern LANGUAGE_FILE_PATTERN = Pattern.compile("[A-Za-z0-9_.-]+\\.ya?ml");
+    private static final Pattern DATABASE_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,64}");
+    private static final Pattern SERVER_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
+    private static final Pattern MYSQL_HOST_PATTERN = Pattern.compile("[^\\s/?#\\\\]{1,255}");
 
     /**
      * 加载并校验所有支持的配置路径
@@ -70,23 +73,28 @@ public record PluginConfig(
                 TABLE_PREFIX_PATTERN,
                 "storage.mysql.table-prefix"
         );
+        int maximumPoolSize = intRange(config, "storage.mysql.pool.maximum-pool-size", 10, 1, 64);
+        int minimumIdle = intRange(config, "storage.mysql.pool.minimum-idle", 2, 0, 64);
+        if (minimumIdle > maximumPoolSize) {
+            throw new IllegalArgumentException("storage.mysql.pool.minimum-idle cannot be greater than maximum-pool-size");
+        }
         MysqlSettings mysql = new MysqlSettings(
-                string(config, "storage.mysql.host", "127.0.0.1"),
+                requirePattern(string(config, "storage.mysql.host", "127.0.0.1"), MYSQL_HOST_PATTERN, "storage.mysql.host"),
                 intRange(config, "storage.mysql.port", 3306, 1, 65535),
-                string(config, "storage.mysql.database", "baymc"),
+                requirePattern(string(config, "storage.mysql.database", "baymc"), DATABASE_NAME_PATTERN, "storage.mysql.database"),
                 string(config, "storage.mysql.username", "root"),
                 string(config, "storage.mysql.password", "password"),
                 tablePrefix,
                 config.getBoolean("storage.mysql.use-ssl", false),
-                intRange(config, "storage.mysql.pool.maximum-pool-size", 10, 1, 64),
-                intRange(config, "storage.mysql.pool.minimum-idle", 2, 0, 64),
+                maximumPoolSize,
+                minimumIdle,
                 longRange(config, "storage.mysql.pool.connection-timeout", 10000L, 250L, 120000L),
                 longRange(config, "storage.mysql.pool.idle-timeout", 600000L, 10000L, 3600000L),
                 longRange(config, "storage.mysql.pool.max-lifetime", 1800000L, 30000L, 7200000L)
         );
 
         ServerSettings server = new ServerSettings(
-                string(config, "server.name", "login"),
+                requirePattern(string(config, "server.name", "login"), SERVER_NAME_PATTERN, "server.name"),
                 ServerMode.from(string(config, "server.mode", "login"))
         );
 

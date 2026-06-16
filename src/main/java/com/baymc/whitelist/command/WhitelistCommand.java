@@ -2,7 +2,6 @@ package com.baymc.whitelist.command;
 
 import com.baymc.whitelist.BayMcWhiteListPlugin;
 import com.baymc.whitelist.code.VerificationResult;
-import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.identity.PlayerIdentity;
 import com.baymc.whitelist.storage.WhitelistLogEntry;
 import org.bukkit.command.Command;
@@ -41,44 +40,47 @@ public final class WhitelistCommand implements TabExecutor {
             @NotNull String label,
             @NotNull String[] args
     ) {
-        if (!(sender instanceof Player player)) {
-            plugin.lang().send(sender, "common.only-player");
-            return true;
+        BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState();
+        Player player = sender instanceof Player playerSender ? playerSender : null;
+        CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
+                player != null,
+                player != null && player.hasPermission("baymcwhitelist.use"),
+                runtime.config().server().mode(),
+                args.length
+        );
+        switch (decision) {
+            case ONLY_PLAYER -> runtime.lang().send(sender, "common.only-player");
+            case NO_PERMISSION -> runtime.lang().send(sender, "common.no-permission");
+            case LOGIN_SERVER_ONLY -> runtime.lang().send(sender, "code.login-server-only");
+            case USAGE -> runtime.lang().send(sender, "usage.whitelist");
+            case OK -> {
+            }
         }
-        if (!player.hasPermission("baymcwhitelist.use")) {
-            plugin.lang().send(player, "common.no-permission");
-            return true;
-        }
-        if (plugin.pluginConfig().server().mode() != PluginConfig.ServerMode.LOGIN) {
-            plugin.lang().send(player, "code.login-server-only");
-            return true;
-        }
-        if (args.length != 1) {
-            plugin.lang().send(player, "usage.whitelist");
+        if (decision != CommandBoundaries.WhitelistDecision.OK) {
             return true;
         }
 
         // 先快照异步数据库任务需要的所有玩家数据, Folia 下后续不能在
         // 连接池线程中读取玩家实体状态
-        PlayerIdentity identity = PlayerIdentity.fromPlayer(player, plugin.pluginConfig().player().idType());
-        VerificationResult result = plugin.inviteCodeService().verify(args[0], identity.key());
+        PlayerIdentity identity = PlayerIdentity.fromPlayer(player, runtime.config().player().idType());
+        VerificationResult result = runtime.inviteCodeService().verify(args[0], identity.key());
         if (result.status() == VerificationResult.Status.INVALID_FORMAT) {
-            plugin.lang().send(player, "code.invalid-format", Map.of("code_prefix", plugin.pluginConfig().code().prefix()));
-            logAttempt(identity, args[0], "VERIFY_INVALID_FORMAT", "invalid_format", addressOf(player));
+            runtime.lang().send(player, "code.invalid-format", Map.of("code_prefix", runtime.config().code().prefix()));
+            logAttempt(runtime, identity, args[0], "VERIFY_INVALID_FORMAT", "invalid_format", addressOf(player));
             return true;
         }
         if (result.status() == VerificationResult.Status.INVALID_OR_EXPIRED) {
-            plugin.lang().send(player, "code.invalid-or-expired");
-            logAttempt(identity, args[0], "VERIFY_INVALID_OR_EXPIRED", "invalid_or_expired", addressOf(player));
+            runtime.lang().send(player, "code.invalid-or-expired");
+            logAttempt(runtime, identity, args[0], "VERIFY_INVALID_OR_EXPIRED", "invalid_or_expired", addressOf(player));
             return true;
         }
-        if (!plugin.isDatabaseReady()) {
-            plugin.lang().send(player, "mysql.not-ready");
+        if (!runtime.databaseReady()) {
+            runtime.lang().send(player, "mysql.not-ready");
             return true;
         }
 
         String ip = addressOf(player);
-        plugin.scheduler().runAsync(() -> verifyAndPersist(player, identity, result, ip));
+        runtime.scheduler().runAsync(() -> verifyAndPersist(runtime, player, identity, result, ip));
         return true;
     }
 
@@ -98,62 +100,75 @@ public final class WhitelistCommand implements TabExecutor {
     /**
      * 向 MySQL 写入验证成功或已过白的审计记录
      */
-    private void verifyAndPersist(Player player, PlayerIdentity identity, VerificationResult result, String ip) {
+    private void verifyAndPersist(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            Player player,
+            PlayerIdentity identity,
+            VerificationResult result,
+            String ip
+    ) {
         try {
-            if (plugin.repository().isWhitelisted(identity.key())) {
-                plugin.repository().log(new WhitelistLogEntry(
+            if (runtime.repository().isWhitelisted(identity.key())) {
+                runtime.repository().log(new WhitelistLogEntry(
                         identity.key(),
                         identity.name(),
                         "VERIFY_ALREADY_WHITELISTED",
                         result.normalizedCode(),
-                        plugin.pluginConfig().server().name(),
+                        runtime.config().server().name(),
                         ip,
                         null,
-                        now()
+                        now(runtime)
                 ));
-                plugin.scheduler().runForPlayer(player, () -> plugin.lang().send(player, "code.already-whitelisted"));
+                runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "code.already-whitelisted"));
                 return;
             }
 
-            LocalDateTime usedAt = now();
-            plugin.repository().upsert(identity, result.normalizedCode(), result.issueDate(), usedAt);
-            plugin.repository().log(new WhitelistLogEntry(
+            LocalDateTime usedAt = now(runtime);
+            runtime.repository().upsert(identity, result.normalizedCode(), result.issueDate(), usedAt);
+            runtime.repository().log(new WhitelistLogEntry(
                     identity.key(),
                     identity.name(),
                     "VERIFY_SUCCESS",
                     result.normalizedCode(),
-                    plugin.pluginConfig().server().name(),
+                    runtime.config().server().name(),
                     ip,
                     null,
                     usedAt
             ));
 
-            plugin.scheduler().runForPlayer(player, () -> plugin.lang().send(player, "code.success"));
+            runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "code.success"));
         } catch (SQLException exception) {
             plugin.getLogger().severe("Failed to verify whitelist code for " + identity.name() + ".");
             exception.printStackTrace();
-            plugin.scheduler().runForPlayer(player, () -> plugin.lang().send(player, "mysql.operation-failed"));
+            runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "mysql.operation-failed"));
         }
     }
 
     /**
      * 尽力记录无效提交的审计日志
      */
-    private void logAttempt(PlayerIdentity identity, String code, String action, String message, String ip) {
-        if (!plugin.isDatabaseReady()) {
+    private void logAttempt(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            PlayerIdentity identity,
+            String code,
+            String action,
+            String message,
+            String ip
+    ) {
+        if (!runtime.databaseReady()) {
             return;
         }
-        plugin.scheduler().runAsync(() -> {
+        runtime.scheduler().runAsync(() -> {
             try {
-                plugin.repository().log(new WhitelistLogEntry(
+                runtime.repository().log(new WhitelistLogEntry(
                         identity.key(),
                         identity.name(),
                         action,
                         code,
-                        plugin.pluginConfig().server().name(),
+                        runtime.config().server().name(),
                         ip,
                         message,
-                        now()
+                        now(runtime)
                 ));
             } catch (SQLException exception) {
                 plugin.getLogger().warning("Failed to write whitelist attempt log: " + exception.getMessage());
@@ -164,8 +179,8 @@ public final class WhitelistCommand implements TabExecutor {
     /**
      * 所有白名单存储时间戳都使用配置中的时区
      */
-    private LocalDateTime now() {
-        return LocalDateTime.now(plugin.pluginConfig().code().zoneId());
+    private static LocalDateTime now(BayMcWhiteListPlugin.RuntimeState runtime) {
+        return LocalDateTime.now(runtime.config().code().zoneId());
     }
 
     /**

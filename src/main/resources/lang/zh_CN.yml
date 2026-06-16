@@ -31,6 +31,8 @@ admin:
     - "<gray>玩家标识: <white><player_key></white></gray>"
     - "<gray>有效期至: <white><expire_time></white></gray>"
   player-not-online-for-uuid-mode: "<prefix><red>当前使用 UUID 模式, 玩家不在线且输入的不是 UUID, 无法生成绑定邀请码</red>"
+  remove-requires-uuid-in-uuid-mode: "<prefix><red>当前使用 UUID 模式, 离线玩家必须输入 UUID 才能移除白名单</red>"
+  status-name-fallback: "<prefix><yellow>未按 UUID 找到记录, 以下结果按玩家名 <white><player></white> 匹配</yellow>"
   status-whitelisted:
     - "<prefix><green>玩家 <white><player></white> 已通过白名单</green>"
     - "<gray>玩家标识: <white><player_key></white></gray>"

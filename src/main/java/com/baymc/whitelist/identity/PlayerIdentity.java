@@ -31,7 +31,7 @@ public record PlayerIdentity(String key, UUID uuid, String name) {
     }
 
     /**
-     * 为管理员生成或查询操作创建 name 模式身份
+     * 为管理员生成或查询操作创建玩家名模式身份
      */
     public static PlayerIdentity forName(String name) {
         return new PlayerIdentity(name.toLowerCase(Locale.ROOT), null, name);

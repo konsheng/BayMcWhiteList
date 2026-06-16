@@ -127,6 +127,22 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
     }
 
     /**
+     * 捕获一次命令或监听器处理过程需要使用的运行期服务快照
+     *
+     * <p>异步任务会继续持有这份快照, 避免 reload 期间同一次操作混用新旧配置, 语言或数据库仓库
+     */
+    public synchronized RuntimeState runtimeState() {
+        return new RuntimeState(
+                pluginConfig,
+                langManager,
+                platformScheduler,
+                whitelistRepository,
+                inviteCodeService,
+                isDatabaseReady()
+        );
+    }
+
+    /**
      * 根据当前 Bukkit 配置重建所有运行期服务
      */
     private synchronized void reloadRuntime() {
@@ -212,5 +228,25 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to inspect bundled language resource", exception);
         }
+    }
+
+    /**
+     * 一次操作使用的运行期服务快照
+     *
+     * @param config 已完成校验的配置快照
+     * @param lang 与该配置绑定的语言管理器
+     * @param scheduler 用于切换异步任务和玩家/全局调度器的适配器
+     * @param repository 与当前数据库管理器绑定的仓库
+     * @param inviteCodeService 与当前邀请码配置绑定的服务
+     * @param databaseReady 捕获快照时数据库是否可用
+     */
+    public record RuntimeState(
+            PluginConfig config,
+            LangManager lang,
+            PlatformScheduler scheduler,
+            WhitelistRepository repository,
+            InviteCodeService inviteCodeService,
+            boolean databaseReady
+    ) {
     }
 }

@@ -35,7 +35,7 @@ public final class DatabaseManager implements AutoCloseable {
         hikari.setUsername(settings.username());
         hikari.setPassword(settings.password());
         hikari.setMaximumPoolSize(settings.maximumPoolSize());
-        hikari.setMinimumIdle(Math.min(settings.minimumIdle(), settings.maximumPoolSize()));
+        hikari.setMinimumIdle(settings.minimumIdle());
         hikari.setConnectionTimeout(settings.connectionTimeout());
         hikari.setIdleTimeout(settings.idleTimeout());
         hikari.setMaxLifetime(settings.maxLifetime());
@@ -107,42 +107,66 @@ public final class DatabaseManager implements AutoCloseable {
     private void initializeSchema() throws SQLException {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
+            String playersTable = playersTable();
+            String logsTable = logsTable();
+
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS %s (
                       id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                      player_key VARCHAR(64) NOT NULL UNIQUE,
-                      player_uuid VARCHAR(36),
-                      player_name VARCHAR(32) NOT NULL,
-                      code VARCHAR(64) NOT NULL,
+                      player_key VARCHAR(%d) NOT NULL UNIQUE,
+                      player_uuid VARCHAR(%d),
+                      player_name VARCHAR(%d) NOT NULL,
+                      code VARCHAR(%d) NOT NULL,
                       issue_date DATE NOT NULL,
                       used_at DATETIME NOT NULL,
-                      source_server VARCHAR(64),
+                      source_server VARCHAR(%d),
                       last_seen_at DATETIME,
                       INDEX idx_player_uuid (player_uuid),
                       INDEX idx_player_name (player_name)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                    """.formatted(playersTable()));
+                    """.formatted(
+                            playersTable,
+                            StorageLimits.PLAYER_KEY,
+                            StorageLimits.PLAYER_UUID,
+                            StorageLimits.PLAYER_NAME,
+                            StorageLimits.CODE,
+                            StorageLimits.SERVER_NAME
+                    ));
 
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS %s (
                       id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                      player_key VARCHAR(64) NOT NULL,
-                      player_name VARCHAR(32) NOT NULL,
-                      action VARCHAR(32) NOT NULL,
-                      code VARCHAR(64),
-                      server_name VARCHAR(64),
-                      ip VARCHAR(64),
-                      message VARCHAR(255),
+                      player_key VARCHAR(%d) NOT NULL,
+                      player_name VARCHAR(%d) NOT NULL,
+                      action VARCHAR(%d) NOT NULL,
+                      code VARCHAR(%d),
+                      server_name VARCHAR(%d),
+                      ip VARCHAR(%d),
+                      message VARCHAR(%d),
                       created_at DATETIME NOT NULL,
                       INDEX idx_player_key (player_key),
                       INDEX idx_created_at (created_at)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                    """.formatted(logsTable()));
+                    """.formatted(
+                            logsTable,
+                            StorageLimits.PLAYER_KEY,
+                            StorageLimits.PLAYER_NAME,
+                            StorageLimits.ACTION,
+                            StorageLimits.CODE,
+                            StorageLimits.SERVER_NAME,
+                            StorageLimits.IP,
+                            StorageLimits.MESSAGE
+                    ));
+
+            statement.executeUpdate("ALTER TABLE " + playersTable
+                    + " MODIFY COLUMN code VARCHAR(" + StorageLimits.CODE + ") NOT NULL");
+            statement.executeUpdate("ALTER TABLE " + logsTable
+                    + " MODIFY COLUMN code VARCHAR(" + StorageLimits.CODE + ")");
         }
     }
 
     /**
-     * 根据配置值和固定安全默认值构建 JDBC URL
+     * 根据配置值和固定安全默认值构建 JDBC 连接地址
      */
     private String jdbcUrl() {
         return "jdbc:mysql://"

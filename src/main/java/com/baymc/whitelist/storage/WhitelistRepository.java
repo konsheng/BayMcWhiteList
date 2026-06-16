@@ -142,13 +142,13 @@ public final class WhitelistRepository {
 
         try (Connection connection = database.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, entry.playerKey());
-            statement.setString(2, entry.playerName());
-            statement.setString(3, entry.action());
-            statement.setString(4, entry.code());
-            statement.setString(5, entry.serverName());
-            statement.setString(6, entry.ip());
-            statement.setString(7, truncate(entry.message(), 255));
+            statement.setString(1, truncate(entry.playerKey(), StorageLimits.PLAYER_KEY));
+            statement.setString(2, truncate(entry.playerName(), StorageLimits.PLAYER_NAME));
+            statement.setString(3, truncate(entry.action(), StorageLimits.ACTION));
+            statement.setString(4, truncate(entry.code(), StorageLimits.CODE));
+            statement.setString(5, truncate(entry.serverName(), StorageLimits.SERVER_NAME));
+            statement.setString(6, truncate(entry.ip(), StorageLimits.IP));
+            statement.setString(7, truncate(entry.message(), StorageLimits.MESSAGE));
             statement.setTimestamp(8, Timestamp.valueOf(entry.createdAt()));
             statement.executeUpdate();
         }
@@ -174,9 +174,9 @@ public final class WhitelistRepository {
     }
 
     /**
-     * 保证日志消息字段不超过表结构限制
+     * 保证写入审计日志的可变文本字段不超过表结构限制
      */
-    private static String truncate(String input, int maxLength) {
+    static String truncate(String input, int maxLength) {
         if (input == null || input.length() <= maxLength) {
             return input;
         }
