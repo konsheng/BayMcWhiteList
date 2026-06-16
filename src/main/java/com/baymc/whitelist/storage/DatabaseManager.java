@@ -107,12 +107,16 @@ public final class DatabaseManager implements AutoCloseable {
 
     /**
      * 标记为旧运行期连接池, 等已捕获快照释放后再关闭
+     *
+     * @return 如果仍有快照持有该连接池, 返回 true 表示需要调用方继续追踪
      */
-    public synchronized void retire() {
+    public synchronized boolean retire() {
         closeRequested = true;
         if (activeLeases == 0) {
             forceClose();
+            return false;
         }
+        return true;
     }
 
     /**

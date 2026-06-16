@@ -16,6 +16,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -34,6 +36,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
     private DatabaseManager databaseManager;
     private WhitelistRepository whitelistRepository;
     private InviteCodeService inviteCodeService;
+    private final List<DatabaseManager> retiredDatabases = new ArrayList<>();
 
     /**
      * 初始化配置, 语言文件, 数据库访问, 命令和监听器
@@ -61,10 +64,15 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
      * 插件关闭时释放 HikariCP 连接池
      */
     @Override
-    public void onDisable() {
+    public synchronized void onDisable() {
         if (databaseManager != null) {
             databaseManager.close();
+            databaseManager = null;
         }
+        for (DatabaseManager retiredDatabase : retiredDatabases) {
+            retiredDatabase.close();
+        }
+        retiredDatabases.clear();
     }
 
     /**
@@ -173,7 +181,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         inviteCodeService = new InviteCodeService(loadedConfig.code());
 
         if (oldDatabase != null && oldDatabase != loadedDatabase) {
-            oldDatabase.retire();
+            retireDatabase(oldDatabase);
         }
 
         if (DEFAULT_SECRET.equals(loadedConfig.code().secret())) {
@@ -187,6 +195,12 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
 
     static boolean shouldPreserveCurrentRuntime(boolean loadedDatabaseReady, boolean currentDatabaseReady) {
         return !loadedDatabaseReady && currentDatabaseReady;
+    }
+
+    private void retireDatabase(DatabaseManager database) {
+        if (database.retire()) {
+            retiredDatabases.add(database);
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -16,6 +17,16 @@ class PluginConfigTest {
     @Test
     void defaultConfigurationValuesLoad() {
         assertDoesNotThrow(() -> PluginConfig.load(new YamlConfiguration()));
+    }
+
+    /**
+     * 空配置应使用和内置 config.yml 一致的默认表前缀
+     */
+    @Test
+    void defaultTablePrefixMatchesBundledConfiguration() {
+        PluginConfig config = PluginConfig.load(new YamlConfiguration());
+
+        assertEquals("baymcwhitelist_", config.mysql().tablePrefix());
     }
 
     /**

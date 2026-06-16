@@ -73,7 +73,7 @@ public record PluginConfig(
 
         // 表前缀后续会插入 SQL 标识符中, 因此使用前必须限制为安全字符
         String tablePrefix = requirePattern(
-                string(config, "storage.mysql.table-prefix", "baymc_"),
+                string(config, "storage.mysql.table-prefix", "baymcwhitelist_"),
                 TABLE_PREFIX_PATTERN,
                 "storage.mysql.table-prefix"
         );

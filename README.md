@@ -179,8 +179,8 @@ UUID
 
 - 记录玩家标识,玩家名,动作类型,邀请码,服务器名,IP 和时间
 - 覆盖验证成功,重复验证,无效邀请码提交,受保护服务器拒绝加入和管理员移除
-- 日志写入 MySQL 的 `baymc_whitelist_logs` 表
-- 白名单状态写入 MySQL 的 `baymc_whitelist_players` 表
+- 日志写入 MySQL 的 `baymcwhitelist_whitelist_logs` 表
+- 白名单状态写入 MySQL 的 `baymcwhitelist_whitelist_players` 表
 
 ## 🛠️ 构建
 

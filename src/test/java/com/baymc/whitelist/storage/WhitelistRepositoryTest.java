@@ -1,5 +1,6 @@
 package com.baymc.whitelist.storage;
 
+import com.baymc.whitelist.config.PluginConfig;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,5 +45,36 @@ class WhitelistRepositoryTest {
 
         assertTrue(sql.contains("WHERE player_name = ?"));
         assertFalse(sql.contains("LOWER("));
+    }
+
+    /**
+     * 只有仍被运行期快照持有的数据库管理器才需要插件继续追踪
+     */
+    @Test
+    void retireOnlyRequestsTrackingWhenLeased() {
+        DatabaseManager unusedDatabase = new DatabaseManager(mysqlSettings());
+        assertFalse(unusedDatabase.retire());
+
+        DatabaseManager leasedDatabase = new DatabaseManager(mysqlSettings());
+        try (DatabaseManager.Lease ignored = leasedDatabase.lease()) {
+            assertTrue(leasedDatabase.retire());
+        }
+    }
+
+    private static PluginConfig.MysqlSettings mysqlSettings() {
+        return new PluginConfig.MysqlSettings(
+                "127.0.0.1",
+                3306,
+                "baymc",
+                "root",
+                "password",
+                "baymcwhitelist_",
+                false,
+                10,
+                2,
+                10000L,
+                600000L,
+                1800000L
+        );
     }
 }
