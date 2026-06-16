@@ -31,9 +31,9 @@ Paper / Folia `26.1.2` 白名单插件，BayMcWhiteList 通过邀请码验证玩
 |---|---|
 | Paper 26.1.2 | ✅ 支持 |
 | Folia 26.1.2 | ✅ 支持 |
-| Leaf 26.1.2 | ⚠️ 未完整测试 |
-| Purpur 26.1.2 | ⚠️ 未完整测试 |
-| Pufferfish 26.1.2 | ⚠️ 未完整测试 |
+| Leaf 26.1.2 | ✅ 支持 |
+| Purpur 26.1.2 | ✅ 支持 |
+| Pufferfish 26.1.2 | ✅ 支持 |
 | Spigot | ❌ 不支持 |
 | CraftBukkit | ❌ 不支持 |
 
@@ -168,7 +168,7 @@ build/libs/BayMcWhiteList-1.0.0-SNAPSHOT.jar
 
 ## 📄 许可证
 
-当前仓库暂未包含 `LICENSE` 文件，许可证信息待补充
+本项目使用 GNU General Public License version 3，详情见 [LICENSE](LICENSE)
 
 ## 📊 bStats
 
