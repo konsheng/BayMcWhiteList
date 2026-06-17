@@ -21,6 +21,12 @@ ON DUPLICATE KEY UPDATE
   source_server = VALUES(source_server),
   last_seen_at = VALUES(last_seen_at)
 
+-- name: insert_manual_player
+INSERT IGNORE INTO ${players_table}
+  (player_key, player_uuid, player_name, code, issue_date, used_at, source_server, last_seen_at)
+VALUES
+  (?, ?, ?, NULL, ?, ?, ?, NULL)
+
 -- name: remove_by_key
 DELETE FROM ${players_table} WHERE player_key = ?
 

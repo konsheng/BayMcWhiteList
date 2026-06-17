@@ -16,6 +16,8 @@ commands:
 permissions:
   baymcwhitelist.use:
     default: true
+  baymcwhitelist.add:
+    default: op
   baymcwhitelist.generate:
     default: op
   baymcwhitelist.status:

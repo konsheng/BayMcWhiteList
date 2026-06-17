@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS ${players_table} (
   player_key VARCHAR(${player_key_length}) NOT NULL UNIQUE,
   player_uuid VARCHAR(${player_uuid_length}),
   player_name VARCHAR(${player_name_length}) NOT NULL,
-  code VARCHAR(${code_length}) NOT NULL,
+  code VARCHAR(${code_length}),
   issue_date DATE NOT NULL,
   used_at DATETIME NOT NULL,
   source_server VARCHAR(${server_name_length}),

@@ -25,6 +25,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("com.mysql:mysql-connector-j:9.7.0")
     implementation("org.bstats:bstats-bukkit:3.2.1")
+    implementation("com.google.code.gson:gson:2.13.2")
 
     testImplementation("io.papermc.paper:paper-api:26.1.2.build.70-stable")
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
@@ -69,6 +70,7 @@ tasks.shadowJar {
     mergeServiceFiles()
     // 重定位 bStats 包名, 避免与其他同样使用 bStats 的插件冲突
     relocate("org.bstats", "com.baymc.whitelist.bstats")
+    relocate("com.google.gson", "com.baymc.whitelist.libs.gson")
 }
 
 tasks.build {

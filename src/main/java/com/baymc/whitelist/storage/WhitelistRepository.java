@@ -98,6 +98,26 @@ public final class WhitelistRepository {
     }
 
     /**
+     * 管理员手动添加白名单记录, 不写入邀请码和最后进入时间
+     *
+     * @return 插入成功返回 true; 如果记录已存在返回 false
+     */
+    public boolean insertManual(PlayerIdentity identity, LocalDate issueDate, LocalDateTime usedAt) throws SQLException {
+        String sql = sql("insert_manual_player");
+
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, identity.key());
+            statement.setString(2, identity.uuid() == null ? null : identity.uuid().toString());
+            statement.setString(3, identity.name());
+            statement.setDate(4, Date.valueOf(issueDate));
+            statement.setTimestamp(5, Timestamp.valueOf(usedAt));
+            statement.setString(6, serverName);
+            return statement.executeUpdate() > 0;
+        }
+    }
+
+    /**
      * 根据标准玩家标识移除白名单记录
      */
     public boolean removeByKey(String playerKey) throws SQLException {

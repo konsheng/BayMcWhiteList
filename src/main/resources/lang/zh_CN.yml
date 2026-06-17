@@ -9,12 +9,13 @@ common:
 
 usage:
   whitelist: "<prefix><yellow>💡 用法: <gold>/whitelist <white><邀请码></white></gold></yellow>"
+  add: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist add <white><玩家名|UUID></white></gold></yellow>"
   generate: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist generate <white><玩家名|UUID></white></gold></yellow>"
   status: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist status <white><玩家名|UUID></white></gold></yellow>"
   remove: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist remove <white><玩家名|UUID></white></gold></yellow>"
   info: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist info</gold></yellow>"
   help: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist help</gold></yellow>"
-  admin: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist <white><generate|status|remove|reload|info|help></white></gold></yellow>"
+  admin: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist <white><add|generate|status|remove|reload|info|help></white></gold></yellow>"
 
 code:
   login-server-only: "<prefix><red>❌ 当前服务器无法进行验证, 请前往 <gold>登录服</gold> 执行此命令</red>"
@@ -27,6 +28,19 @@ admin:
   reload-started: "<prefix><yellow>🔄 正在尝试重载配置文件, 语言文件及数据库连接</yellow>"
   reload-success: "<prefix><green>✅ 重载完成! 配置, 语言和数据库已成功同步</green>"
   reload-failed: "<prefix><red>❌ 重载失败! 配置存在错误, 请及时检查后台日志</red>"
+  add-lookup-name-start: "<prefix><yellow>🔎 正在查询玩家 <white><player></white> 的正版 UUID, 请稍候...</yellow>"
+  add-lookup-uuid-start: "<prefix><yellow>🔎 正在校验 UUID <white><uuid></white>, 请稍候...</yellow>"
+  add-profile-found: "<prefix><green>✅ 已获取正版档案: <white><player></white> / <white><uuid></white></green>"
+  add-write-start: "<prefix><yellow>📝 正在写入白名单...</yellow>"
+  add-already-whitelisted: "<prefix><yellow>ℹ️ 玩家 <white><player></white> 已在白名单中, 无需重复添加</yellow>"
+  add-name-not-found: "<prefix><red>❌ 未找到正版玩家 <white><player></white>, 请检查玩家名是否正确</red>"
+  add-uuid-not-found: "<prefix><red>❌ 该 UUID 不属于任何正版玩家, 请检查是否输入错误</red>"
+  add-lookup-failed: "<prefix><red>🚨 Mojang API 查询失败, 请稍后重试</red>"
+  add-success:
+    - "<prefix><green>🎉 已将玩家 <gold><player></gold> 添加到白名单</green>"
+    - " <dark_gray>▪</dark_gray> <gray>玩家标识: </gray><white><player_key></white>"
+    - " <dark_gray>▪</dark_gray> <gray><gradient:#DDA0DD:#9370DB>UUID</gradient>: </gray><white><uuid></white>"
+    - " <dark_gray>▪</dark_gray> <gray>添加方式: </gray><white>管理员手动添加</white>"
   generate-success:
     - "<prefix><green>🎉 已成功为玩家 <gold><player></gold> 生成邀请码</green>"
     - " <dark_gray>▪</dark_gray> <gray>核心验证码: </gray><yellow><bold><code></bold></yellow>"
@@ -53,6 +67,7 @@ admin:
     - " <dark_gray>▪</dark_gray> <gray>插件信息: </gray><gold>/baymcwhitelist</gold> <dark_gray>或</dark_gray> <gold>/baymcwhitelist info</gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.info</white>"
     - " <dark_gray>▪</dark_gray> <gray>帮助信息: </gray><gold>/baymcwhitelist help</gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.help</white>"
     - " <dark_gray>▪</dark_gray> <gray>玩家过白: </gray><green>/whitelist <邀请码></green> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.use</white>"
+    - " <dark_gray>▪</dark_gray> <gray>手动添加: </gray><gold>/baymcwhitelist add <玩家名|UUID></gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.add</white>"
     - " <dark_gray>▪</dark_gray> <gray>生成邀码: </gray><gold>/baymcwhitelist generate <玩家名|UUID></gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.generate</white>"
     - " <dark_gray>▪</dark_gray> <gray>查询状态: </gray><gold>/baymcwhitelist status <玩家名|UUID></gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.status</white>"
     - " <dark_gray>▪</dark_gray> <gray>移除记录: </gray><gold>/baymcwhitelist remove <玩家名|UUID></gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.remove</white>"

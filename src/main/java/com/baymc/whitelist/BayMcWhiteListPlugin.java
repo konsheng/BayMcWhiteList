@@ -6,6 +6,7 @@ import com.baymc.whitelist.command.WhitelistCommand;
 import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.lang.LangManager;
 import com.baymc.whitelist.listener.WhitelistLoginListener;
+import com.baymc.whitelist.mojang.MojangProfileService;
 import com.baymc.whitelist.scheduler.PlatformScheduler;
 import com.baymc.whitelist.storage.DatabaseManager;
 import com.baymc.whitelist.storage.WhitelistRepository;
@@ -36,6 +37,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
     private DatabaseManager databaseManager;
     private WhitelistRepository whitelistRepository;
     private InviteCodeService inviteCodeService;
+    private final MojangProfileService mojangProfileService = new MojangProfileService();
     private final List<DatabaseManager> retiredDatabases = new ArrayList<>();
 
     /**
@@ -147,6 +149,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
                 platformScheduler,
                 whitelistRepository,
                 inviteCodeService,
+                mojangProfileService,
                 databaseLease,
                 this::pruneRetiredDatabases,
                 isDatabaseReady()
@@ -271,6 +274,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
      * @param scheduler 用于切换异步任务和玩家/全局调度器的适配器
      * @param repository 与当前数据库管理器绑定的仓库
      * @param inviteCodeService 与当前邀请码配置绑定的服务
+     * @param mojangProfileService 用于管理员手动添加时校验正版玩家档案
      * @param databaseLease 保持当前数据库管理器存活的快照引用
      * @param closeCallback 快照释放后执行的运行期清理逻辑
      * @param databaseReady 捕获快照时数据库是否可用
@@ -281,6 +285,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
             PlatformScheduler scheduler,
             WhitelistRepository repository,
             InviteCodeService inviteCodeService,
+            MojangProfileService mojangProfileService,
             DatabaseManager.Lease databaseLease,
             Runnable closeCallback,
             boolean databaseReady

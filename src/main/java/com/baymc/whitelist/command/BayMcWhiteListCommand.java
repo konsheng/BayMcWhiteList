@@ -4,6 +4,8 @@ import com.baymc.whitelist.BayMcWhiteListPlugin;
 import com.baymc.whitelist.code.GeneratedCode;
 import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.identity.PlayerIdentity;
+import com.baymc.whitelist.mojang.MojangProfile;
+import com.baymc.whitelist.mojang.MojangProfileLookupException;
 import com.baymc.whitelist.storage.WhitelistLogEntry;
 import com.baymc.whitelist.storage.WhitelistRecord;
 import org.bukkit.Bukkit;
@@ -60,6 +62,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
 
             String subcommand = args[0].toLowerCase(Locale.ROOT);
             switch (subcommand) {
+                case "add" -> runtimeOwnedByAsync = handleAdd(runtime, sender, args);
                 case "generate" -> handleGenerate(runtime, sender, args);
                 case "status" -> runtimeOwnedByAsync = handleStatus(runtime, sender, args);
                 case "remove" -> runtimeOwnedByAsync = handleRemove(runtime, sender, args);
@@ -89,7 +92,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
         if (args.length == 1) {
             return CommandBoundaries.visibleAdminSubcommands(sender::hasPermission, args[0]);
         }
-        if (args.length == 2 && List.of("generate", "status", "remove").contains(args[0].toLowerCase(Locale.ROOT))) {
+        if (args.length == 2 && List.of("add", "generate", "status", "remove").contains(args[0].toLowerCase(Locale.ROOT))) {
             if (!sender.hasPermission(CommandBoundaries.permissionFor(args[0]))) {
                 return List.of();
             }
@@ -100,6 +103,93 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                     .toList();
         }
         return List.of();
+    }
+
+    /**
+     * 通过 Mojang 档案校验后由管理员直接写入白名单
+     */
+    private boolean handleAdd(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
+        if (!hasPermission(runtime, sender, "baymcwhitelist.add")) {
+            return false;
+        }
+        if (!CommandBoundaries.hasExactArgumentCount(args, 2)) {
+            runtime.lang().send(sender, "usage.add");
+            return false;
+        }
+        if (!ensureDatabaseReady(runtime, sender)) {
+            return false;
+        }
+
+        String input = args[1].trim();
+        Optional<UUID> inputUuid = parseUuid(input);
+        if (inputUuid.isEmpty() && !isValidPlayerName(input)) {
+            runtime.lang().send(sender, "common.invalid-player-identifier");
+            return false;
+        }
+
+        if (inputUuid.isPresent()) {
+            runtime.lang().send(sender, "admin.add-lookup-uuid-start", Map.of("uuid", inputUuid.get().toString()));
+        } else if (runtime.config().player().idType() == PluginConfig.PlayerIdType.UUID) {
+            runtime.lang().send(sender, "admin.add-lookup-name-start", Map.of("player", input));
+        } else {
+            runtime.lang().send(sender, "admin.add-write-start");
+        }
+
+        runtime.scheduler().runAsync(() -> {
+            try {
+                AddTarget target = resolveAddTarget(runtime, sender, input, inputUuid);
+                if (target == null) {
+                    return;
+                }
+
+                if (target.profileVerified()) {
+                    runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                            sender,
+                            "admin.add-profile-found",
+                            addPlaceholders(runtime, target)
+                    ));
+                    runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "admin.add-write-start"));
+                }
+
+                PlayerIdentity identity = target.identity();
+                if (runtime.repository().isWhitelisted(identity.key())) {
+                    runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                            sender,
+                            "admin.add-already-whitelisted",
+                            addPlaceholders(runtime, target)
+                    ));
+                    return;
+                }
+
+                LocalDateTime now = LocalDateTime.now(runtime.config().code().zoneId());
+                boolean inserted = runtime.repository().insertManual(identity, now.toLocalDate(), now);
+                if (!inserted) {
+                    runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                            sender,
+                            "admin.add-already-whitelisted",
+                            addPlaceholders(runtime, target)
+                    ));
+                    return;
+                }
+
+                logManualAdd(runtime, sender, identity, now);
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                        sender,
+                        "admin.add-success",
+                        addPlaceholders(runtime, target)
+                ));
+            } catch (MojangProfileLookupException exception) {
+                plugin.getLogger().warning("Failed to query Mojang profile: " + exception.getMessage());
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "admin.add-lookup-failed"));
+            } catch (SQLException exception) {
+                plugin.getLogger().severe("Failed to manually add whitelist record.");
+                exception.printStackTrace();
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "mysql.operation-failed"));
+            } finally {
+                runtime.close();
+            }
+        });
+        return true;
     }
 
     /**
@@ -283,6 +373,87 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     /**
+     * 根据当前身份模式和管理员输入解析手动添加目标
+     */
+    private AddTarget resolveAddTarget(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender,
+            String input,
+            Optional<UUID> inputUuid
+    ) throws MojangProfileLookupException {
+        PluginConfig.PlayerIdType idType = runtime.config().player().idType();
+        if (inputUuid.isPresent()) {
+            Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByUuid(inputUuid.get());
+            if (profile.isEmpty()) {
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                        sender,
+                        "admin.add-uuid-not-found",
+                        Map.of("uuid", inputUuid.get().toString())
+                ));
+                return null;
+            }
+            return addTargetFromProfile(idType, profile.get());
+        }
+
+        if (idType == PluginConfig.PlayerIdType.UUID) {
+            Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByName(input);
+            if (profile.isEmpty()) {
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                        sender,
+                        "admin.add-name-not-found",
+                        Map.of("player", input)
+                ));
+                return null;
+            }
+            return addTargetFromProfile(idType, profile.get());
+        }
+
+        return new AddTarget(PlayerIdentity.forName(input), false);
+    }
+
+    private AddTarget addTargetFromProfile(PluginConfig.PlayerIdType idType, MojangProfile profile) {
+        return new AddTarget(
+                new PlayerIdentity(
+                        PlayerIdentity.keyFor(idType, profile.uuid(), profile.name()),
+                        profile.uuid(),
+                        profile.name()
+                ),
+                true
+        );
+    }
+
+    private void logManualAdd(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender,
+            PlayerIdentity identity,
+            LocalDateTime createdAt
+    ) {
+        try {
+            runtime.repository().log(new WhitelistLogEntry(
+                    identity.key(),
+                    identity.name(),
+                    "ADMIN_ADD",
+                    null,
+                    runtime.config().server().name(),
+                    null,
+                    sender.getName(),
+                    createdAt
+            ));
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Failed to write manual whitelist add log: " + exception.getMessage());
+        }
+    }
+
+    private Map<String, String> addPlaceholders(BayMcWhiteListPlugin.RuntimeState runtime, AddTarget target) {
+        PlayerIdentity identity = target.identity();
+        return Map.of(
+                "player", identity.name(),
+                "player_key", identity.key(),
+                "uuid", identity.uuid() == null ? state(runtime, "state.none") : identity.uuid().toString()
+        );
+    }
+
+    /**
      * 为邀请码生成操作解析目标身份
      */
     private Optional<PlayerIdentity> resolveGenerationIdentity(
@@ -455,10 +626,23 @@ public final class BayMcWhiteListCommand implements TabExecutor {
      */
     private static Optional<UUID> parseUuid(String input) {
         try {
+            String normalized = input.replace("-", "");
+            if (normalized.matches("[0-9a-fA-F]{32}")) {
+                return Optional.of(UUID.fromString(normalized.replaceFirst(
+                        "([0-9a-fA-F]{8})([0-9a-fA-F]{4})([0-9a-fA-F]{4})([0-9a-fA-F]{4})([0-9a-fA-F]{12})",
+                        "$1-$2-$3-$4-$5"
+                )));
+            }
             return Optional.of(UUID.fromString(input));
         } catch (IllegalArgumentException exception) {
             return Optional.empty();
         }
+    }
+
+    /**
+     * 管理员手动添加命令最终要写入白名单的身份和档案校验状态
+     */
+    private record AddTarget(PlayerIdentity identity, boolean profileVerified) {
     }
 
     /**

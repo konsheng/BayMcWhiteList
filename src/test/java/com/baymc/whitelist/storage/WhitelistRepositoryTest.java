@@ -3,6 +3,8 @@ package com.baymc.whitelist.storage;
 import com.baymc.whitelist.config.PluginConfig;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -38,13 +40,32 @@ class WhitelistRepositoryTest {
      */
     @Test
     void findByNameQueryDoesNotWrapIndexedColumn() {
-        String sql = SqlTemplates.load("sql/repository.sql").render("find_by_name", java.util.Map.of(
-                "players_table", "`players`",
-                "logs_table", "`logs`"
-        ));
+        String sql = SqlTemplates.load("sql/repository.sql").render("find_by_name", tablePlaceholders());
 
         assertTrue(sql.contains("WHERE player_name = ?"));
         assertFalse(sql.contains("LOWER("));
+    }
+
+    /**
+     * 手动添加白名单没有真实邀请码, 因此建表 SQL 应允许 code 为空
+     */
+    @Test
+    void schemaAllowsManualWhitelistRecordsWithoutInviteCode() {
+        String sql = SqlTemplates.load("sql/schema.sql").render("create_whitelist_players", schemaPlaceholders());
+
+        assertTrue(sql.contains("code VARCHAR(" + StorageLimits.CODE + ")"));
+        assertFalse(sql.contains("code VARCHAR(" + StorageLimits.CODE + ") NOT NULL"));
+    }
+
+    /**
+     * 手动添加 SQL 应显式写入空邀请码和空最后进入时间
+     */
+    @Test
+    void manualInsertStoresNullCodeAndLastSeen() {
+        String sql = SqlTemplates.load("sql/repository.sql").render("insert_manual_player", tablePlaceholders());
+
+        assertTrue(sql.contains("INSERT IGNORE INTO `players`"));
+        assertTrue(sql.contains("?, ?, ?, NULL, ?, ?, ?, NULL"));
     }
 
     /**
@@ -76,6 +97,28 @@ class WhitelistRepositoryTest {
                 10000L,
                 600000L,
                 1800000L
+        );
+    }
+
+    private static Map<String, String> tablePlaceholders() {
+        return Map.of(
+                "players_table", "`players`",
+                "logs_table", "`logs`"
+        );
+    }
+
+    private static Map<String, String> schemaPlaceholders() {
+        return Map.of(
+                "players_table", "`players`",
+                "logs_table", "`logs`",
+                "player_key_length", String.valueOf(StorageLimits.PLAYER_KEY),
+                "player_uuid_length", String.valueOf(StorageLimits.PLAYER_UUID),
+                "player_name_length", String.valueOf(StorageLimits.PLAYER_NAME),
+                "code_length", String.valueOf(StorageLimits.CODE),
+                "server_name_length", String.valueOf(StorageLimits.SERVER_NAME),
+                "action_length", String.valueOf(StorageLimits.ACTION),
+                "ip_length", String.valueOf(StorageLimits.IP),
+                "message_length", String.valueOf(StorageLimits.MESSAGE)
         );
     }
 }
