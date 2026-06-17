@@ -27,6 +27,7 @@ public record PluginConfig(
     private static final Pattern LANGUAGE_FILE_PATTERN = Pattern.compile("[A-Za-z0-9_.-]+\\.ya?ml");
     private static final Pattern DATABASE_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,64}");
     private static final Pattern SERVER_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
+    private static final Pattern PERMISSION_NODE_PATTERN = Pattern.compile("[a-z0-9_.-]{1,128}");
     private static final Pattern MYSQL_HOST_PATTERN = Pattern.compile(
             "(?=.{1,255}$)(?:(?:[A-Za-z0-9](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9])?)"
                     + "(?:\\.(?:[A-Za-z0-9](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9])?))*"
@@ -118,7 +119,15 @@ public record PluginConfig(
                 intRange(config, "security.verify-rate-limit.ip-window-seconds", 300, 1, 86400),
                 intRange(config, "security.verify-rate-limit.lock-seconds", 600, 1, 86400),
                 config.getBoolean("security.verify-rate-limit.kick-on-lock", true),
-                intRange(config, "security.verify-rate-limit.blocked-log-interval-seconds", 60, 1, 86400)
+                intRange(config, "security.verify-rate-limit.blocked-log-interval-seconds", 60, 1, 86400),
+                config.getBoolean("security.verify-rate-limit.notify-console", true),
+                config.getBoolean("security.verify-rate-limit.notify-admins", true),
+                requirePattern(
+                        string(config, "security.verify-rate-limit.notify-permission", "baymcwhitelist.notify"),
+                        PERMISSION_NODE_PATTERN,
+                        "security.verify-rate-limit.notify-permission"
+                ),
+                intRange(config, "security.verify-rate-limit.notify-interval-seconds", 60, 1, 86400)
         );
         SecuritySettings security = new SecuritySettings(verifyRateLimit);
 
@@ -238,7 +247,11 @@ public record PluginConfig(
             int ipWindowSeconds,
             int lockSeconds,
             boolean kickOnLock,
-            int blockedLogIntervalSeconds
+            int blockedLogIntervalSeconds,
+            boolean notifyConsole,
+            boolean notifyAdmins,
+            String notifyPermission,
+            int notifyIntervalSeconds
     ) {
     }
 

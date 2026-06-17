@@ -16,6 +16,7 @@ public final class VerifyRateLimiter {
     private final Clock clock;
     private final Map<String, Bucket> playerBuckets = new HashMap<>();
     private final Map<String, Bucket> ipBuckets = new HashMap<>();
+    private final Map<String, Instant> notificationTimes = new HashMap<>();
 
     public VerifyRateLimiter(PluginConfig.VerifyRateLimitSettings settings) {
         this(settings, Clock.systemUTC());
@@ -81,6 +82,22 @@ public final class VerifyRateLimiter {
         }
     }
 
+    public synchronized boolean shouldNotify(Scope scope, String playerKey, String ip) {
+        String key = notificationKey(scope, playerKey, ip);
+        if (key == null) {
+            return false;
+        }
+
+        Instant now = clock.instant();
+        Instant lastNotifiedAt = notificationTimes.get(key);
+        if (lastNotifiedAt != null
+                && lastNotifiedAt.plusSeconds(settings.notifyIntervalSeconds()).isAfter(now)) {
+            return false;
+        }
+        notificationTimes.put(key, now);
+        return true;
+    }
+
     private Decision lockedDecision(Bucket bucket, Scope scope, Instant now) {
         if (bucket == null || bucket.lockedUntil == null) {
             return Decision.allowed();
@@ -128,6 +145,13 @@ public final class VerifyRateLimiter {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private static String notificationKey(Scope scope, String playerKey, String ip) {
+        return switch (scope) {
+            case PLAYER -> isBlank(playerKey) ? null : "player:" + playerKey;
+            case IP -> isBlank(ip) ? null : "ip:" + ip;
+        };
     }
 
     public enum Status {

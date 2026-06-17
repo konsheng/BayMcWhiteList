@@ -58,6 +58,10 @@ class PluginConfigTest {
         assertEquals(600, settings.lockSeconds());
         assertEquals(true, settings.kickOnLock());
         assertEquals(60, settings.blockedLogIntervalSeconds());
+        assertEquals(true, settings.notifyConsole());
+        assertEquals(true, settings.notifyAdmins());
+        assertEquals("baymcwhitelist.notify", settings.notifyPermission());
+        assertEquals(60, settings.notifyIntervalSeconds());
     }
 
     @Test
@@ -80,6 +84,12 @@ class PluginConfigTest {
                 loadWithSecurityValue("security.verify-rate-limit.lock-seconds", 86401));
         assertThrows(IllegalArgumentException.class, () ->
                 loadWithSecurityValue("security.verify-rate-limit.blocked-log-interval-seconds", 0));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithSecurityValue("security.verify-rate-limit.notify-interval-seconds", 0));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithSecurityText("security.verify-rate-limit.notify-permission", "BayMcWhiteList.Notify"));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithSecurityText("security.verify-rate-limit.notify-permission", "baymcwhitelist.notify!"));
     }
 
     /**
@@ -168,6 +178,12 @@ class PluginConfigTest {
     }
 
     private static PluginConfig loadWithSecurityValue(String path, int value) {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set(path, value);
+        return PluginConfig.load(config);
+    }
+
+    private static PluginConfig loadWithSecurityText(String path, String value) {
         YamlConfiguration config = new YamlConfiguration();
         config.set(path, value);
         return PluginConfig.load(config);

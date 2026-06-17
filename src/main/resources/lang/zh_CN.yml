@@ -100,6 +100,8 @@ kick:
     - "<gray>如有疑问, 请联系服务器管理员</gray>"
 
 security:
+  scope-player: "玩家"
+  scope-ip: "IP"
   verify-locked:
     - "<prefix><red>邀请码验证已被临时锁定</red>"
     - "<prefix><gray>剩余时间: <white><remaining_seconds></white> 秒</gray>"
@@ -112,6 +114,13 @@ security:
   verify-rate-limited-kick:
     - "<red>邀请码错误次数过多</red>"
     - "<gray>请 <remaining_seconds> 秒后再试</gray>"
+  notify-rate-limited:
+    - "<prefix><red>安全警告: 邀请码验证触发限流</red>"
+    - " <dark_gray>▪</dark_gray> <gray>玩家: </gray><white><player></white>"
+    - " <dark_gray>▪</dark_gray> <gray>玩家标识: </gray><white><player_key></white>"
+    - " <dark_gray>▪</dark_gray> <gray>触发范围: </gray><white><scope></white>"
+    - " <dark_gray>▪</dark_gray> <gray>IP: </gray><white><ip></white>"
+    - " <dark_gray>▪</dark_gray> <gray>锁定剩余: </gray><white><remaining_seconds></white><gray> 秒</gray>"
 
 state:
   database-ready: "<green>● 已连接</green>"

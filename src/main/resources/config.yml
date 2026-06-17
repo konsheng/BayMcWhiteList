@@ -80,6 +80,18 @@ security:
     # 锁定期间重复尝试时审计日志最短写入间隔, 单位秒, 允许范围 1 到 86400
     blocked-log-interval-seconds: 60
 
+    # 触发邀请码验证限流时是否输出后台警告
+    notify-console: true
+
+    # 触发邀请码验证限流时是否通知本服在线管理员
+    notify-admins: true
+
+    # 接收安全通知需要的权限, 只允许小写字母, 数字, 下划线, 点和横线
+    notify-permission: "baymcwhitelist.notify"
+
+    # 同一玩家或 IP 重复触发通知的最短间隔, 单位秒, 允许范围 1 到 86400
+    notify-interval-seconds: 60
+
 # 玩家身份标识配置
 # 该配置决定邀请码绑定到 UUID 还是玩家名, 也决定 MySQL 白名单唯一键
 player:

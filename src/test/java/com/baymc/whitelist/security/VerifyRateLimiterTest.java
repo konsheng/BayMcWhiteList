@@ -44,7 +44,7 @@ class VerifyRateLimiterTest {
     @Test
     void locksIpWhenIpThresholdIsReached() {
         MutableClock clock = new MutableClock();
-        VerifyRateLimiter limiter = limiter(clock, settings(true, 10, 300, 2, 300, 600, true, 60));
+        VerifyRateLimiter limiter = limiter(clock, settings(true, 10, 300, 2, 300, 600, true, 60, 60));
 
         limiter.recordFailure("player-a", IP);
         VerifyRateLimiter.Decision limited = limiter.recordFailure("player-b", IP);
@@ -89,7 +89,7 @@ class VerifyRateLimiterTest {
     @Test
     void disabledLimiterAlwaysAllowsAttempts() {
         MutableClock clock = new MutableClock();
-        VerifyRateLimiter limiter = limiter(clock, settings(false, 1, 300, 1, 300, 600, true, 60));
+        VerifyRateLimiter limiter = limiter(clock, settings(false, 1, 300, 1, 300, 600, true, 60, 60));
 
         limiter.recordFailure(PLAYER_KEY, IP);
         limiter.recordFailure(PLAYER_KEY, IP);
@@ -97,8 +97,30 @@ class VerifyRateLimiterTest {
         assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_KEY, IP).status());
     }
 
+    @Test
+    void notificationCooldownSuppressesRepeatedScopeNotification() {
+        MutableClock clock = new MutableClock();
+        VerifyRateLimiter limiter = limiter(clock);
+
+        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
+        assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
+        clock.advanceSeconds(60);
+        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
+    }
+
+    @Test
+    void notificationCooldownSeparatesPlayerAndIpScopes() {
+        MutableClock clock = new MutableClock();
+        VerifyRateLimiter limiter = limiter(clock);
+
+        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
+        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.IP, PLAYER_KEY, IP));
+        assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
+        assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.IP, PLAYER_KEY, IP));
+    }
+
     private static VerifyRateLimiter limiter(MutableClock clock) {
-        return limiter(clock, settings(true, 3, 300, 20, 300, 600, true, 60));
+        return limiter(clock, settings(true, 3, 300, 20, 300, 600, true, 60, 60));
     }
 
     private static VerifyRateLimiter limiter(MutableClock clock, PluginConfig.VerifyRateLimitSettings settings) {
@@ -113,7 +135,8 @@ class VerifyRateLimiterTest {
             int ipWindowSeconds,
             int lockSeconds,
             boolean kickOnLock,
-            int blockedLogIntervalSeconds
+            int blockedLogIntervalSeconds,
+            int notifyIntervalSeconds
     ) {
         return new PluginConfig.VerifyRateLimitSettings(
                 enabled,
@@ -123,7 +146,11 @@ class VerifyRateLimiterTest {
                 ipWindowSeconds,
                 lockSeconds,
                 kickOnLock,
-                blockedLogIntervalSeconds
+                blockedLogIntervalSeconds,
+                true,
+                true,
+                "baymcwhitelist.notify",
+                notifyIntervalSeconds
         );
     }
 

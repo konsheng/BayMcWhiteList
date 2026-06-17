@@ -2,10 +2,12 @@ package com.baymc.whitelist.command;
 
 import com.baymc.whitelist.BayMcWhiteListPlugin;
 import com.baymc.whitelist.code.VerificationResult;
+import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.identity.PlayerIdentity;
 import com.baymc.whitelist.security.VerifyRateLimiter;
 import com.baymc.whitelist.storage.WhitelistLogEntry;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -179,6 +181,7 @@ public final class WhitelistCommand implements TabExecutor {
         VerifyRateLimiter.Decision limited = runtime.verifyRateLimiter().recordFailure(identity.key(), ip);
         if (limited.status() == VerifyRateLimiter.Status.RATE_LIMITED) {
             logAttemptQuietly(runtime, identity, rawCode, rateLimitedAction(limited.scope()), scopeMessage(limited.scope()), ip);
+            notifyRateLimited(runtime, identity, ip, limited);
             sendSecurityFeedback(runtime, player, limited, true);
             return;
         }
@@ -208,7 +211,7 @@ public final class WhitelistCommand implements TabExecutor {
     ) {
         Map<String, String> placeholders = Map.of(
                 "remaining_seconds", String.valueOf(decision.remainingSeconds()),
-                "scope", scopeMessage(decision.scope())
+                "scope", runtime.lang().plain(scopeLanguageKey(decision.scope()))
         );
         boolean kick = runtime.verifyRateLimiter().settings().kickOnLock();
         String messageKey = newlyLimited ? "security.verify-rate-limited" : "security.verify-locked";
@@ -221,6 +224,53 @@ public final class WhitelistCommand implements TabExecutor {
             }
             runtime.lang().send(player, messageKey, placeholders);
         });
+    }
+
+    private void notifyRateLimited(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            PlayerIdentity identity,
+            String ip,
+            VerifyRateLimiter.Decision decision
+    ) {
+        PluginConfig.VerifyRateLimitSettings settings = runtime.verifyRateLimiter().settings();
+        if (!settings.notifyConsole() && !settings.notifyAdmins()) {
+            return;
+        }
+        if (!runtime.verifyRateLimiter().shouldNotify(decision.scope(), identity.key(), ip)) {
+            return;
+        }
+
+        Map<String, String> placeholders = securityPlaceholders(runtime, identity, ip, decision);
+        runtime.scheduler().runGlobal(() -> {
+            if (settings.notifyConsole()) {
+                runtime.lang().send(Bukkit.getConsoleSender(), "security.notify-rate-limited", placeholders);
+            }
+            if (!settings.notifyAdmins()) {
+                return;
+            }
+
+            for (Player admin : Bukkit.getOnlinePlayers()) {
+                if (admin.hasPermission(settings.notifyPermission())) {
+                    runtime.scheduler().runForPlayer(admin, () ->
+                            runtime.lang().send(admin, "security.notify-rate-limited", placeholders));
+                }
+            }
+        });
+    }
+
+    private Map<String, String> securityPlaceholders(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            PlayerIdentity identity,
+            String ip,
+            VerifyRateLimiter.Decision decision
+    ) {
+        return Map.of(
+                "player", valueOrNone(runtime, identity.name()),
+                "player_key", valueOrNone(runtime, identity.key()),
+                "scope", runtime.lang().plain(scopeLanguageKey(decision.scope())),
+                "ip", valueOrNone(runtime, ip),
+                "remaining_seconds", String.valueOf(decision.remainingSeconds())
+        );
     }
 
     private void logAttemptQuietly(
@@ -253,6 +303,14 @@ public final class WhitelistCommand implements TabExecutor {
 
     private static String scopeMessage(VerifyRateLimiter.Scope scope) {
         return scope == VerifyRateLimiter.Scope.IP ? "ip" : "player";
+    }
+
+    private static String scopeLanguageKey(VerifyRateLimiter.Scope scope) {
+        return scope == VerifyRateLimiter.Scope.IP ? "security.scope-ip" : "security.scope-player";
+    }
+
+    private static String valueOrNone(BayMcWhiteListPlugin.RuntimeState runtime, String value) {
+        return value == null || value.isBlank() ? runtime.lang().plain("state.none") : value;
     }
 
     private static LocalDateTime now(BayMcWhiteListPlugin.RuntimeState runtime) {

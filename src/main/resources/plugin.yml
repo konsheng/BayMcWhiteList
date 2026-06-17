@@ -30,3 +30,5 @@ permissions:
     default: op
   baymcwhitelist.help:
     default: op
+  baymcwhitelist.notify:
+    default: op
