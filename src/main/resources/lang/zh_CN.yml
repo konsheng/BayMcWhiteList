@@ -12,7 +12,9 @@ usage:
   generate: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist generate <white><玩家名|UUID></white></gold></yellow>"
   status: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist status <white><玩家名|UUID></white></gold></yellow>"
   remove: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist remove <white><玩家名|UUID></white></gold></yellow>"
-  admin: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist <white><generate|status|remove|reload|info></white></gold></yellow>"
+  info: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist info</gold></yellow>"
+  help: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist help</gold></yellow>"
+  admin: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist <white><generate|status|remove|reload|info|help></white></gold></yellow>"
 
 code:
   login-server-only: "<prefix><red>❌ 当前服务器无法进行验证, 请前往 <gold>登录服</gold> 执行此命令</red>"
@@ -45,6 +47,16 @@ admin:
   status-not-whitelisted: "<prefix><yellow>📊 档案查询: 玩家 <white><player></white> <red>[尚未通过验证]</red></yellow>"
   remove-success: "<prefix><green>🗑️ 已成功移除玩家 <gold><player></gold> 的记录</green>"
   remove-not-found: "<prefix><yellow>🔍 移除失败: 数据库中未找到玩家 <white><player></white> 的记录</yellow>"
+  help:
+    - "<prefix><bold><gradient:#00BFFF:#1E90FF>BayMc</gradient><gradient:#FFFFFF:#D3D3D3>WhiteList</gradient></bold> <dark_gray>| 命令帮助</dark_gray>"
+    - " <dark_gray>▪</dark_gray> <gray>主命令: </gray><white>/baymcwhitelist</white> <dark_gray>|</dark_gray> <gray>别名: </gray><white>/wl</white>"
+    - " <dark_gray>▪</dark_gray> <gray>插件信息: </gray><gold>/baymcwhitelist</gold> <dark_gray>或</dark_gray> <gold>/baymcwhitelist info</gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.info</white>"
+    - " <dark_gray>▪</dark_gray> <gray>帮助信息: </gray><gold>/baymcwhitelist help</gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.help</white>"
+    - " <dark_gray>▪</dark_gray> <gray>玩家过白: </gray><green>/whitelist <邀请码></green> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.use</white>"
+    - " <dark_gray>▪</dark_gray> <gray>生成邀码: </gray><gold>/baymcwhitelist generate <玩家名|UUID></gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.generate</white>"
+    - " <dark_gray>▪</dark_gray> <gray>查询状态: </gray><gold>/baymcwhitelist status <玩家名|UUID></gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.status</white>"
+    - " <dark_gray>▪</dark_gray> <gray>移除记录: </gray><gold>/baymcwhitelist remove <玩家名|UUID></gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.remove</white>"
+    - " <dark_gray>▪</dark_gray> <gray>重载配置: </gray><gold>/baymcwhitelist reload</gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.reload</white>"
   info:
     - "<prefix><bold><gradient:#00BFFF:#1E90FF>BayMc</gradient><gradient:#FFFFFF:#D3D3D3>WhiteList</gradient></bold> <gray>v<version></gray> <dark_gray>| 系统状态面板</dark_gray>"
     - " <dark_gray>▪</dark_gray> <gray>当前节点: </gray><white><server_name></white> <dark_gray>|</dark_gray> <gray>运行模式: </gray><aqua><server_mode></aqua>"

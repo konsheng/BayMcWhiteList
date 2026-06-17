@@ -89,11 +89,26 @@ class CommandBoundariesTest {
      */
     @Test
     void adminTabCompletionOnlyShowsPermittedSubcommands() {
-        Set<String> permissions = Set.of("baymcwhitelist.generate", "baymcwhitelist.info");
+        Set<String> permissions = Set.of("baymcwhitelist.generate", "baymcwhitelist.info", "baymcwhitelist.help");
 
         List<String> visible = CommandBoundaries.visibleAdminSubcommands(permissions::contains, "");
 
-        assertEquals(List.of("generate", "info"), visible);
+        assertEquals(List.of("generate", "info", "help"), visible);
+    }
+
+    /**
+     * help 子命令使用独立权限节点, 不依赖总管理权限包
+     */
+    @Test
+    void helpSubcommandUsesIndependentPermission() {
+        assertEquals("baymcwhitelist.help", CommandBoundaries.permissionFor("help"));
+
+        List<String> visible = CommandBoundaries.visibleAdminSubcommands(
+                "baymcwhitelist.help"::equals,
+                ""
+        );
+
+        assertEquals(List.of("help"), visible);
     }
 
     /**

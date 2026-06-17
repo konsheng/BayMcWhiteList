@@ -9,15 +9,13 @@ folia-supported: true
 commands:
   baymcwhitelist:
     aliases:
-      - bmwl
+      - wl
   whitelist: {}
 
 # 权限默认值对应玩家命令和管理员命令的分工
 permissions:
   baymcwhitelist.use:
     default: true
-  baymcwhitelist.admin:
-    default: op
   baymcwhitelist.generate:
     default: op
   baymcwhitelist.status:
@@ -27,4 +25,6 @@ permissions:
   baymcwhitelist.reload:
     default: op
   baymcwhitelist.info:
+    default: op
+  baymcwhitelist.help:
     default: op

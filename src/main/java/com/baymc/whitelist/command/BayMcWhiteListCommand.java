@@ -50,18 +50,14 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             @NotNull String label,
             @NotNull String[] args
     ) {
-        if (args.length == 0) {
-            try (BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState()) {
-                if (hasPermission(runtime, sender, "baymcwhitelist.admin")) {
-                    runtime.lang().send(sender, "usage.admin");
-                }
-            }
-            return true;
-        }
-
         BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState();
         boolean runtimeOwnedByAsync = false;
         try {
+            if (args.length == 0) {
+                handleInfo(runtime, sender, args);
+                return true;
+            }
+
             String subcommand = args[0].toLowerCase(Locale.ROOT);
             switch (subcommand) {
                 case "generate" -> handleGenerate(runtime, sender, args);
@@ -69,11 +65,8 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 case "remove" -> runtimeOwnedByAsync = handleRemove(runtime, sender, args);
                 case "reload" -> handleReload(runtime, sender, args);
                 case "info" -> handleInfo(runtime, sender, args);
-                default -> {
-                    if (hasPermission(runtime, sender, "baymcwhitelist.admin")) {
-                        runtime.lang().send(sender, "common.unknown-command");
-                    }
-                }
+                case "help" -> handleHelp(runtime, sender, args);
+                default -> runtime.lang().send(sender, "common.unknown-command");
             }
         } finally {
             if (!runtimeOwnedByAsync) {
@@ -253,14 +246,28 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     /**
+     * 显示主命令, 别名, 玩家命令和各独立权限说明
+     */
+    private void handleHelp(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
+        if (!hasPermission(runtime, sender, "baymcwhitelist.help")) {
+            return;
+        }
+        if (!CommandBoundaries.hasExactArgumentCount(args, 1)) {
+            runtime.lang().send(sender, "usage.help");
+            return;
+        }
+        runtime.lang().send(sender, "admin.help");
+    }
+
+    /**
      * 显示插件模式, 邀请码配置, 身份模式和数据库状态
      */
     private void handleInfo(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
         if (!hasPermission(runtime, sender, "baymcwhitelist.info")) {
             return;
         }
-        if (!CommandBoundaries.hasExactArgumentCount(args, 1)) {
-            runtime.lang().send(sender, "usage.admin");
+        if (args.length > 1) {
+            runtime.lang().send(sender, "usage.info");
             return;
         }
         PluginConfig config = runtime.config();

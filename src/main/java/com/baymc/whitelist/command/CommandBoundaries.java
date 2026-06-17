@@ -15,7 +15,7 @@ final class CommandBoundaries {
     /**
      * 管理员命令当前支持的全部一级子命令, 顺序同时用于 Tab 补全展示
      */
-    static final List<String> ADMIN_SUBCOMMANDS = List.of("generate", "status", "remove", "reload", "info");
+    static final List<String> ADMIN_SUBCOMMANDS = List.of("generate", "status", "remove", "reload", "info", "help");
 
     private CommandBoundaries() {
     }
@@ -72,7 +72,8 @@ final class CommandBoundaries {
             case "remove" -> "baymcwhitelist.remove";
             case "reload" -> "baymcwhitelist.reload";
             case "info" -> "baymcwhitelist.info";
-            default -> "baymcwhitelist.admin";
+            case "help" -> "baymcwhitelist.help";
+            default -> "baymcwhitelist." + subcommand.toLowerCase(Locale.ROOT);
         };
     }
 
