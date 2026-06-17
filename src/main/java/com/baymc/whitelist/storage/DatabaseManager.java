@@ -71,6 +71,13 @@ public final class DatabaseManager implements AutoCloseable {
     }
 
     /**
+     * 判断连接池是否已经关闭, 供插件清理 retired 运行期引用
+     */
+    public synchronized boolean isClosed() {
+        return dataSource == null || dataSource.isClosed();
+    }
+
+    /**
      * 借出数据库连接; 如果启动未完成则快速失败
      */
     public Connection getConnection() throws SQLException {

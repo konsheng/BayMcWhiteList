@@ -148,6 +148,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
                 whitelistRepository,
                 inviteCodeService,
                 databaseLease,
+                this::pruneRetiredDatabases,
                 isDatabaseReady()
         );
     }
@@ -201,6 +202,11 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         if (database.retire()) {
             retiredDatabases.add(database);
         }
+        pruneRetiredDatabases();
+    }
+
+    private synchronized void pruneRetiredDatabases() {
+        retiredDatabases.removeIf(DatabaseManager::isClosed);
     }
 
     /**
@@ -266,6 +272,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
      * @param repository 与当前数据库管理器绑定的仓库
      * @param inviteCodeService 与当前邀请码配置绑定的服务
      * @param databaseLease 保持当前数据库管理器存活的快照引用
+     * @param closeCallback 快照释放后执行的运行期清理逻辑
      * @param databaseReady 捕获快照时数据库是否可用
      */
     public record RuntimeState(
@@ -275,12 +282,17 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
             WhitelistRepository repository,
             InviteCodeService inviteCodeService,
             DatabaseManager.Lease databaseLease,
+            Runnable closeCallback,
             boolean databaseReady
     ) implements AutoCloseable {
         @Override
         public void close() {
-            if (databaseLease != null) {
-                databaseLease.close();
+            try {
+                if (databaseLease != null) {
+                    databaseLease.close();
+                }
+            } finally {
+                closeCallback.run();
             }
         }
     }

@@ -32,7 +32,7 @@ admin:
     - " <dark_gray>▪</dark_gray> <gray>凭证有效期: </gray><white><expire_time></white>"
   player-not-online-for-uuid-mode: "<prefix><red>⚠️ 当前处于 UUID 模式下, 因目标玩家不在线且输入的并非标准 UUID, 无法生成绑定邀请码</red>"
   remove-requires-uuid-in-uuid-mode: "<prefix><red>⚠️ 当前处于 UUID 模式下, 移除离线玩家必须提供其准确的 UUID</red>"
-  status-name-fallback: "<prefix><yellow>🔍 未按 UUID 检索到记录, 已自动切换为按玩家名 <white><player></white> 进行模糊匹配</yellow>"
+  status-name-fallback: "<prefix><yellow>🔍 未按 UUID 检索到记录, 已自动切换为按玩家名 <white><player></white> 精确匹配</yellow>"
   status-whitelisted:
     - "<prefix><green>📊 档案查询: 玩家 <gold><player></gold> [已通过验证]</green>"
     - " <dark_gray>▪</dark_gray> <gray>玩家标识: </gray><white><player_key></white>"

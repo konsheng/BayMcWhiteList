@@ -59,6 +59,7 @@ class WhitelistRepositoryTest {
         try (DatabaseManager.Lease ignored = leasedDatabase.lease()) {
             assertTrue(leasedDatabase.retire());
         }
+        assertTrue(leasedDatabase.isClosed());
     }
 
     private static PluginConfig.MysqlSettings mysqlSettings() {
