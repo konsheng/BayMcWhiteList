@@ -8,6 +8,7 @@ import com.baymc.whitelist.mojang.MojangProfile;
 import com.baymc.whitelist.mojang.MojangProfileLookupException;
 import com.baymc.whitelist.storage.WhitelistLogEntry;
 import com.baymc.whitelist.storage.WhitelistRecord;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -340,11 +341,16 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                     ));
                 }
 
-                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
-                        sender,
-                        removed ? "admin.remove-success" : "admin.remove-not-found",
-                        Map.of("player", record.playerName())
-                ));
+                if (!removed) {
+                    runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                            sender,
+                            "admin.remove-not-found",
+                            Map.of("player", record.playerName())
+                    ));
+                    return;
+                }
+
+                completeRemoval(runtime, sender, record);
             } catch (SQLException exception) {
                 plugin.getLogger().severe("Failed to remove whitelist record.");
                 exception.printStackTrace();
@@ -572,6 +578,10 @@ public final class BayMcWhiteListCommand implements TabExecutor {
         return uuid == null ? state(runtime, "state.none") : uuid.toString();
     }
 
+    private static String valueOrEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
     /**
      * 为状态命令解析查询目标, UUID 模式下允许离线玩家名回查历史记录
      */
@@ -625,6 +635,67 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 yield null;
             }
         };
+    }
+
+    private void completeRemoval(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender,
+            WhitelistRecord record
+    ) {
+        if (!runtime.config().remove().kickOnlinePlayer()) {
+            runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                    sender,
+                    "admin.remove-success",
+                    removalPlaceholders(runtime, record)
+            ));
+            return;
+        }
+
+        runtime.scheduler().runGlobal(() -> {
+            Player onlinePlayer = findOnlineRemovedPlayer(record);
+            if (onlinePlayer == null) {
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                        sender,
+                        "admin.remove-success-offline",
+                        removalPlaceholders(runtime, record)
+                ));
+                return;
+            }
+
+            Component kickMessage = runtime.lang().joined(
+                    "kick.whitelist-removed",
+                    removalPlaceholders(runtime, record)
+            );
+            runtime.scheduler().runForPlayer(onlinePlayer, () -> onlinePlayer.kick(kickMessage));
+            runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                    sender,
+                    "admin.remove-success-kicked",
+                    removalPlaceholders(runtime, record)
+            ));
+        });
+    }
+
+    private @Nullable Player findOnlineRemovedPlayer(WhitelistRecord record) {
+        Optional<UUID> uuid = parseUuid(valueOrEmpty(record.playerUuid()));
+        if (uuid.isPresent()) {
+            Player player = Bukkit.getPlayer(uuid.get());
+            if (player != null) {
+                return player;
+            }
+        }
+        String playerName = record.playerName();
+        if (playerName == null || playerName.isBlank()) {
+            return null;
+        }
+        return Bukkit.getPlayerExact(playerName);
+    }
+
+    private Map<String, String> removalPlaceholders(BayMcWhiteListPlugin.RuntimeState runtime, WhitelistRecord record) {
+        return Map.of(
+                "player", value(runtime, record.playerName()),
+                "player_key", value(runtime, record.playerKey()),
+                "uuid", value(runtime, record.playerUuid())
+        );
     }
 
     /**

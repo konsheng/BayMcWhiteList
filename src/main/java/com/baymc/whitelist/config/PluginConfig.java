@@ -18,7 +18,8 @@ public record PluginConfig(
         PlayerSettings player,
         MysqlSettings mysql,
         ServerSettings server,
-        LanguageSettings language
+        LanguageSettings language,
+        RemoveSettings remove
 ) {
     private static final Pattern CODE_PREFIX_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,24}");
     private static final Pattern TABLE_PREFIX_PATTERN = Pattern.compile("[A-Za-z0-9_]{0,32}");
@@ -106,7 +107,9 @@ public record PluginConfig(
                 requirePattern(string(config, "language.file", "zh_CN.yml"), LANGUAGE_FILE_PATTERN, "language.file")
         );
 
-        return new PluginConfig(code, player, mysql, server, language);
+        RemoveSettings remove = new RemoveSettings(config.getBoolean("remove.kick-online-player", true));
+
+        return new PluginConfig(code, player, mysql, server, language, remove);
     }
 
     /**
@@ -197,6 +200,12 @@ public record PluginConfig(
      * 从插件数据目录 lang 文件夹中选择的语言文件
      */
     public record LanguageSettings(String file) {
+    }
+
+    /**
+     * 撤销白名单后的本服处理策略
+     */
+    public record RemoveSettings(boolean kickOnlinePlayer) {
     }
 
     /**

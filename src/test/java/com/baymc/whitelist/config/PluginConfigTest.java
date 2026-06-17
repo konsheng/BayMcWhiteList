@@ -29,6 +29,21 @@ class PluginConfigTest {
         assertEquals("baymcwhitelist_", config.mysql().tablePrefix());
     }
 
+    @Test
+    void defaultRemoveKickOnlinePlayerIsEnabled() {
+        PluginConfig config = PluginConfig.load(new YamlConfiguration());
+
+        assertEquals(true, config.remove().kickOnlinePlayer());
+    }
+
+    @Test
+    void removeKickOnlinePlayerCanBeDisabled() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("remove.kick-online-player", false);
+
+        assertEquals(false, PluginConfig.load(config).remove().kickOnlinePlayer());
+    }
+
     /**
      * 服务器名不能为空白, 否则审计来源字段没有稳定含义
      */
