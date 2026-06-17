@@ -93,6 +93,20 @@ class MojangProfileServiceTest {
         assertTrue(profile.isEmpty());
     }
 
+    /**
+     * Mojang 响应里的玩家名仍然属于外部输入, 写库前必须符合插件支持的玩家名边界
+     */
+    @Test
+    void invalidProfileNameThrowsLookupException() {
+        MojangProfileService service = service(
+                new AtomicReference<>(),
+                200,
+                profileJson("Bad-Name", NOTCH_DASHLESS_UUID)
+        );
+
+        assertThrows(MojangProfileLookupException.class, () -> service.lookupByName("Notch"));
+    }
+
     private static MojangProfileService service(AtomicReference<URI> requestedUri, int statusCode, String body) {
         return new MojangProfileService(uri -> {
             requestedUri.set(uri);

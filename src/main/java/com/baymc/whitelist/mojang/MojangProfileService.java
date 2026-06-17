@@ -26,6 +26,7 @@ public final class MojangProfileService {
     private static final String UUID_LOOKUP_URL = "https://sessionserver.mojang.com/session/minecraft/profile/";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
     private static final Pattern DASHLESS_UUID_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
+    private static final Pattern PLAYER_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,32}");
 
     private final ProfileTransport transport;
 
@@ -92,11 +93,19 @@ public final class MojangProfileService {
             }
             JsonObject object = parsed.getAsJsonObject();
             String id = requiredString(object, "id");
-            String name = requiredString(object, "name");
+            String name = requiredPlayerName(object);
             return new MojangProfile(uuidFromDashless(id), name);
         } catch (JsonSyntaxException | IllegalArgumentException exception) {
             throw new MojangProfileLookupException("Unable to parse Mojang profile response", exception);
         }
+    }
+
+    private static String requiredPlayerName(JsonObject object) throws MojangProfileLookupException {
+        String name = requiredString(object, "name");
+        if (!PLAYER_NAME_PATTERN.matcher(name).matches()) {
+            throw new MojangProfileLookupException("Mojang profile response contains invalid player name");
+        }
+        return name;
     }
 
     private static String requiredString(JsonObject object, String key) throws MojangProfileLookupException {
