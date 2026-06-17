@@ -8,6 +8,7 @@ import com.baymc.whitelist.lang.LangManager;
 import com.baymc.whitelist.listener.WhitelistLoginListener;
 import com.baymc.whitelist.mojang.MojangProfileService;
 import com.baymc.whitelist.scheduler.PlatformScheduler;
+import com.baymc.whitelist.security.VerifyRateLimiter;
 import com.baymc.whitelist.storage.DatabaseManager;
 import com.baymc.whitelist.storage.WhitelistRepository;
 import org.bstats.bukkit.Metrics;
@@ -37,6 +38,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
     private DatabaseManager databaseManager;
     private WhitelistRepository whitelistRepository;
     private InviteCodeService inviteCodeService;
+    private VerifyRateLimiter verifyRateLimiter;
     private final MojangProfileService mojangProfileService = new MojangProfileService();
     private final List<DatabaseManager> retiredDatabases = new ArrayList<>();
 
@@ -150,6 +152,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
                 whitelistRepository,
                 inviteCodeService,
                 mojangProfileService,
+                verifyRateLimiter,
                 databaseLease,
                 this::pruneRetiredDatabases,
                 isDatabaseReady()
@@ -183,6 +186,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         databaseManager = loadedDatabase;
         whitelistRepository = new WhitelistRepository(loadedDatabase, loadedConfig.server().name());
         inviteCodeService = new InviteCodeService(loadedConfig.code());
+        verifyRateLimiter = new VerifyRateLimiter(loadedConfig.security().verifyRateLimit());
 
         if (oldDatabase != null && oldDatabase != loadedDatabase) {
             retireDatabase(oldDatabase);
@@ -286,6 +290,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
             WhitelistRepository repository,
             InviteCodeService inviteCodeService,
             MojangProfileService mojangProfileService,
+            VerifyRateLimiter verifyRateLimiter,
             DatabaseManager.Lease databaseLease,
             Runnable closeCallback,
             boolean databaseReady

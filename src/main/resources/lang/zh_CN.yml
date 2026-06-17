@@ -99,6 +99,20 @@ kick:
     - "<red>你的白名单资格已被管理员撤销</red>"
     - "<gray>如有疑问, 请联系服务器管理员</gray>"
 
+security:
+  verify-locked:
+    - "<prefix><red>邀请码验证已被临时锁定</red>"
+    - "<prefix><gray>剩余时间: <white><remaining_seconds></white> 秒</gray>"
+  verify-locked-kick:
+    - "<red>邀请码验证已被临时锁定</red>"
+    - "<gray>请 <remaining_seconds> 秒后再试</gray>"
+  verify-rate-limited:
+    - "<prefix><red>邀请码错误次数过多, 已临时锁定验证</red>"
+    - "<prefix><gray>请 <white><remaining_seconds></white> 秒后再试</gray>"
+  verify-rate-limited-kick:
+    - "<red>邀请码错误次数过多</red>"
+    - "<gray>请 <remaining_seconds> 秒后再试</gray>"
+
 state:
   database-ready: "<green>● 已连接</green>"
   database-unavailable: "<red>● 断开</red>"

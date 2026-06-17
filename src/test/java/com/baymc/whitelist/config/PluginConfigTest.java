@@ -44,6 +44,44 @@ class PluginConfigTest {
         assertEquals(false, PluginConfig.load(config).remove().kickOnlinePlayer());
     }
 
+    @Test
+    void defaultVerifyRateLimitSettingsLoad() {
+        PluginConfig.VerifyRateLimitSettings settings = PluginConfig.load(new YamlConfiguration())
+                .security()
+                .verifyRateLimit();
+
+        assertEquals(true, settings.enabled());
+        assertEquals(5, settings.maxFailuresPerPlayer());
+        assertEquals(300, settings.playerWindowSeconds());
+        assertEquals(20, settings.maxFailuresPerIp());
+        assertEquals(300, settings.ipWindowSeconds());
+        assertEquals(600, settings.lockSeconds());
+        assertEquals(true, settings.kickOnLock());
+        assertEquals(60, settings.blockedLogIntervalSeconds());
+    }
+
+    @Test
+    void verifyRateLimitCanBeDisabled() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("security.verify-rate-limit.enabled", false);
+
+        assertEquals(false, PluginConfig.load(config).security().verifyRateLimit().enabled());
+    }
+
+    @Test
+    void rejectsInvalidVerifyRateLimitValues() {
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithSecurityValue("security.verify-rate-limit.max-failures-per-player", 0));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithSecurityValue("security.verify-rate-limit.player-window-seconds", 0));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithSecurityValue("security.verify-rate-limit.max-failures-per-ip", 1001));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithSecurityValue("security.verify-rate-limit.lock-seconds", 86401));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithSecurityValue("security.verify-rate-limit.blocked-log-interval-seconds", 0));
+    }
+
     /**
      * 服务器名不能为空白, 否则审计来源字段没有稳定含义
      */
@@ -126,6 +164,12 @@ class PluginConfigTest {
     private static PluginConfig loadWithMysqlHost(String host) {
         YamlConfiguration config = new YamlConfiguration();
         config.set("storage.mysql.host", host);
+        return PluginConfig.load(config);
+    }
+
+    private static PluginConfig loadWithSecurityValue(String path, int value) {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set(path, value);
         return PluginConfig.load(config);
     }
 }

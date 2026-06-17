@@ -53,6 +53,33 @@ code:
   # true 时必须与生成结果大小写完全一致
   case-sensitive: false
 
+# 安全配置
+security:
+  verify-rate-limit:
+    # 是否启用 /whitelist 邀请码验证防爆破
+    enabled: true
+
+    # 单个玩家在窗口期内允许的邀请码错误次数, 允许范围 1 到 1000
+    max-failures-per-player: 5
+
+    # 玩家失败次数统计窗口, 单位秒, 允许范围 1 到 86400
+    player-window-seconds: 300
+
+    # 单个 IP 在窗口期内允许的邀请码错误次数, 允许范围 1 到 1000
+    max-failures-per-ip: 20
+
+    # IP 失败次数统计窗口, 单位秒, 允许范围 1 到 86400
+    ip-window-seconds: 300
+
+    # 触发限制后锁定验证的时间, 单位秒, 允许范围 1 到 86400
+    lock-seconds: 600
+
+    # 触发锁定或锁定期间再次尝试时是否踢出玩家
+    kick-on-lock: true
+
+    # 锁定期间重复尝试时审计日志最短写入间隔, 单位秒, 允许范围 1 到 86400
+    blocked-log-interval-seconds: 60
+
 # 玩家身份标识配置
 # 该配置决定邀请码绑定到 UUID 还是玩家名, 也决定 MySQL 白名单唯一键
 player:

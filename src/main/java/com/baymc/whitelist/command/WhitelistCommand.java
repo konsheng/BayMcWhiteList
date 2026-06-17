@@ -3,7 +3,9 @@ package com.baymc.whitelist.command;
 import com.baymc.whitelist.BayMcWhiteListPlugin;
 import com.baymc.whitelist.code.VerificationResult;
 import com.baymc.whitelist.identity.PlayerIdentity;
+import com.baymc.whitelist.security.VerifyRateLimiter;
 import com.baymc.whitelist.storage.WhitelistLogEntry;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -18,21 +20,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 处理面向玩家的 /whitelist 邀请码命令
+ * Handles the player-facing /whitelist invite-code command.
  */
 public final class WhitelistCommand implements TabExecutor {
     private final BayMcWhiteListPlugin plugin;
 
-    /**
-     * 保存用于访问配置, 语言, 调度器和存储层的插件门面对象
-     */
     public WhitelistCommand(BayMcWhiteListPlugin plugin) {
         this.plugin = plugin;
     }
 
-    /**
-     * 校验命令上下文, 检查邀请码, 并异步持久化成功结果
-     */
     @Override
     public boolean onCommand(
             @NotNull CommandSender sender,
@@ -62,29 +58,17 @@ public final class WhitelistCommand implements TabExecutor {
                 return true;
             }
 
-            // 先快照异步数据库任务需要的所有玩家数据, Folia 下后续不能在
-            // 连接池线程中读取玩家实体状态
             PlayerIdentity identity = PlayerIdentity.fromPlayer(player, runtime.config().player().idType());
-            VerificationResult result = runtime.inviteCodeService().verify(args[0], identity.key());
-            if (result.status() == VerificationResult.Status.INVALID_FORMAT) {
-                runtime.lang().send(player, "code.invalid-format", Map.of("code_prefix", runtime.config().code().prefix()));
-                runtimeOwnedByAsync = logAttempt(runtime, identity, args[0], "VERIFY_INVALID_FORMAT", "invalid_format", addressOf(player));
-                return true;
-            }
-            if (result.status() == VerificationResult.Status.INVALID_OR_EXPIRED) {
-                runtime.lang().send(player, "code.invalid-or-expired");
-                runtimeOwnedByAsync = logAttempt(runtime, identity, args[0], "VERIFY_INVALID_OR_EXPIRED", "invalid_or_expired", addressOf(player));
-                return true;
-            }
             if (!runtime.databaseReady()) {
                 runtime.lang().send(player, "mysql.not-ready");
                 return true;
             }
 
             String ip = addressOf(player);
+            String rawCode = args[0];
             runtime.scheduler().runAsync(() -> {
                 try {
-                    verifyAndPersist(runtime, player, identity, result, ip);
+                    verifyWithSecurity(runtime, player, identity, rawCode, ip);
                 } finally {
                     runtime.close();
                 }
@@ -98,9 +82,6 @@ public final class WhitelistCommand implements TabExecutor {
         }
     }
 
-    /**
-     * 不返回补全内容, 因为邀请码不应该被自动建议
-     */
     @Override
     public @Nullable List<String> onTabComplete(
             @NotNull CommandSender sender,
@@ -111,29 +92,53 @@ public final class WhitelistCommand implements TabExecutor {
         return List.of();
     }
 
-    /**
-     * 向 MySQL 写入验证成功或已过白的审计记录
-     */
-    private void verifyAndPersist(
+    private void verifyWithSecurity(
             BayMcWhiteListPlugin.RuntimeState runtime,
             Player player,
             PlayerIdentity identity,
-            VerificationResult result,
+            String rawCode,
             String ip
     ) {
         try {
             if (runtime.repository().isWhitelisted(identity.key())) {
-                runtime.repository().log(new WhitelistLogEntry(
-                        identity.key(),
-                        identity.name(),
-                        "VERIFY_ALREADY_WHITELISTED",
-                        result.normalizedCode(),
-                        runtime.config().server().name(),
-                        ip,
-                        null,
-                        now(runtime)
-                ));
+                logAttemptQuietly(runtime, identity, null, "VERIFY_ALREADY_WHITELISTED", "already_whitelisted", ip);
                 runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "code.already-whitelisted"));
+                return;
+            }
+
+            VerifyRateLimiter.Decision locked = runtime.verifyRateLimiter().check(identity.key(), ip);
+            if (locked.status() == VerifyRateLimiter.Status.LOCKED) {
+                handleLockedAttempt(runtime, player, identity, rawCode, ip, locked);
+                return;
+            }
+
+            VerificationResult result = runtime.inviteCodeService().verify(rawCode, identity.key());
+            if (result.status() == VerificationResult.Status.INVALID_FORMAT) {
+                handleInvalidCode(
+                        runtime,
+                        player,
+                        identity,
+                        rawCode,
+                        ip,
+                        "VERIFY_INVALID_FORMAT",
+                        "invalid_format",
+                        "code.invalid-format",
+                        Map.of("code_prefix", runtime.config().code().prefix())
+                );
+                return;
+            }
+            if (result.status() == VerificationResult.Status.INVALID_OR_EXPIRED) {
+                handleInvalidCode(
+                        runtime,
+                        player,
+                        identity,
+                        rawCode,
+                        ip,
+                        "VERIFY_INVALID_OR_EXPIRED",
+                        "invalid_or_expired",
+                        "code.invalid-or-expired",
+                        Map.of()
+                );
                 return;
             }
 
@@ -149,6 +154,7 @@ public final class WhitelistCommand implements TabExecutor {
                     null,
                     usedAt
             ));
+            runtime.verifyRateLimiter().reset(identity.key(), ip);
 
             runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "code.success"));
         } catch (SQLException exception) {
@@ -158,10 +164,66 @@ public final class WhitelistCommand implements TabExecutor {
         }
     }
 
-    /**
-     * 尽力记录无效提交的审计日志
-     */
-    private boolean logAttempt(
+    private void handleInvalidCode(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            Player player,
+            PlayerIdentity identity,
+            String rawCode,
+            String ip,
+            String invalidAction,
+            String invalidMessage,
+            String invalidLanguageKey,
+            Map<String, String> invalidPlaceholders
+    ) {
+        logAttemptQuietly(runtime, identity, rawCode, invalidAction, invalidMessage, ip);
+        VerifyRateLimiter.Decision limited = runtime.verifyRateLimiter().recordFailure(identity.key(), ip);
+        if (limited.status() == VerifyRateLimiter.Status.RATE_LIMITED) {
+            logAttemptQuietly(runtime, identity, rawCode, rateLimitedAction(limited.scope()), scopeMessage(limited.scope()), ip);
+            sendSecurityFeedback(runtime, player, limited, true);
+            return;
+        }
+
+        runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, invalidLanguageKey, invalidPlaceholders));
+    }
+
+    private void handleLockedAttempt(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            Player player,
+            PlayerIdentity identity,
+            String rawCode,
+            String ip,
+            VerifyRateLimiter.Decision locked
+    ) {
+        if (locked.shouldLogBlocked()) {
+            logAttemptQuietly(runtime, identity, rawCode, "VERIFY_RATE_LIMIT_BLOCKED", scopeMessage(locked.scope()), ip);
+        }
+        sendSecurityFeedback(runtime, player, locked, false);
+    }
+
+    private void sendSecurityFeedback(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            Player player,
+            VerifyRateLimiter.Decision decision,
+            boolean newlyLimited
+    ) {
+        Map<String, String> placeholders = Map.of(
+                "remaining_seconds", String.valueOf(decision.remainingSeconds()),
+                "scope", scopeMessage(decision.scope())
+        );
+        boolean kick = runtime.verifyRateLimiter().settings().kickOnLock();
+        String messageKey = newlyLimited ? "security.verify-rate-limited" : "security.verify-locked";
+        String kickKey = newlyLimited ? "security.verify-rate-limited-kick" : "security.verify-locked-kick";
+        runtime.scheduler().runForPlayer(player, () -> {
+            if (kick) {
+                Component message = runtime.lang().joined(kickKey, placeholders);
+                player.kick(message);
+                return;
+            }
+            runtime.lang().send(player, messageKey, placeholders);
+        });
+    }
+
+    private void logAttemptQuietly(
             BayMcWhiteListPlugin.RuntimeState runtime,
             PlayerIdentity identity,
             String code,
@@ -169,40 +231,34 @@ public final class WhitelistCommand implements TabExecutor {
             String message,
             String ip
     ) {
-        if (!runtime.databaseReady()) {
-            return false;
+        try {
+            runtime.repository().log(new WhitelistLogEntry(
+                    identity.key(),
+                    identity.name(),
+                    action,
+                    code,
+                    runtime.config().server().name(),
+                    ip,
+                    message,
+                    now(runtime)
+            ));
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Failed to write whitelist attempt log: " + exception.getMessage());
         }
-        runtime.scheduler().runAsync(() -> {
-            try {
-                runtime.repository().log(new WhitelistLogEntry(
-                        identity.key(),
-                        identity.name(),
-                        action,
-                        code,
-                        runtime.config().server().name(),
-                        ip,
-                        message,
-                        now(runtime)
-                ));
-            } catch (SQLException exception) {
-                plugin.getLogger().warning("Failed to write whitelist attempt log: " + exception.getMessage());
-            } finally {
-                runtime.close();
-            }
-        });
-        return true;
     }
 
-    /**
-     * 所有白名单存储时间戳都使用配置中的时区
-     */
+    private static String rateLimitedAction(VerifyRateLimiter.Scope scope) {
+        return scope == VerifyRateLimiter.Scope.IP ? "VERIFY_RATE_LIMITED_IP" : "VERIFY_RATE_LIMITED_PLAYER";
+    }
+
+    private static String scopeMessage(VerifyRateLimiter.Scope scope) {
+        return scope == VerifyRateLimiter.Scope.IP ? "ip" : "player";
+    }
+
     private static LocalDateTime now(BayMcWhiteListPlugin.RuntimeState runtime) {
         return LocalDateTime.now(runtime.config().code().zoneId());
     }
 
-    /**
-     * 提取玩家远程地址, 同时兼容地址不可用的情况
-     */
     private static String addressOf(Player player) {
         InetSocketAddress address = player.getAddress();
         return address == null || address.getAddress() == null ? null : address.getAddress().getHostAddress();

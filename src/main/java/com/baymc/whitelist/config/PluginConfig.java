@@ -19,7 +19,8 @@ public record PluginConfig(
         MysqlSettings mysql,
         ServerSettings server,
         LanguageSettings language,
-        RemoveSettings remove
+        RemoveSettings remove,
+        SecuritySettings security
 ) {
     private static final Pattern CODE_PREFIX_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,24}");
     private static final Pattern TABLE_PREFIX_PATTERN = Pattern.compile("[A-Za-z0-9_]{0,32}");
@@ -109,7 +110,19 @@ public record PluginConfig(
 
         RemoveSettings remove = new RemoveSettings(config.getBoolean("remove.kick-online-player", true));
 
-        return new PluginConfig(code, player, mysql, server, language, remove);
+        VerifyRateLimitSettings verifyRateLimit = new VerifyRateLimitSettings(
+                config.getBoolean("security.verify-rate-limit.enabled", true),
+                intRange(config, "security.verify-rate-limit.max-failures-per-player", 5, 1, 1000),
+                intRange(config, "security.verify-rate-limit.player-window-seconds", 300, 1, 86400),
+                intRange(config, "security.verify-rate-limit.max-failures-per-ip", 20, 1, 1000),
+                intRange(config, "security.verify-rate-limit.ip-window-seconds", 300, 1, 86400),
+                intRange(config, "security.verify-rate-limit.lock-seconds", 600, 1, 86400),
+                config.getBoolean("security.verify-rate-limit.kick-on-lock", true),
+                intRange(config, "security.verify-rate-limit.blocked-log-interval-seconds", 60, 1, 86400)
+        );
+        SecuritySettings security = new SecuritySettings(verifyRateLimit);
+
+        return new PluginConfig(code, player, mysql, server, language, remove, security);
     }
 
     /**
@@ -206,6 +219,27 @@ public record PluginConfig(
      * 撤销白名单后的本服处理策略
      */
     public record RemoveSettings(boolean kickOnlinePlayer) {
+    }
+
+    /**
+     * 邀请码验证安全策略
+     */
+    public record SecuritySettings(VerifyRateLimitSettings verifyRateLimit) {
+    }
+
+    /**
+     * 玩家执行 /whitelist 时的失败计数和临时锁定配置
+     */
+    public record VerifyRateLimitSettings(
+            boolean enabled,
+            int maxFailuresPerPlayer,
+            int playerWindowSeconds,
+            int maxFailuresPerIp,
+            int ipWindowSeconds,
+            int lockSeconds,
+            boolean kickOnLock,
+            int blockedLogIntervalSeconds
+    ) {
     }
 
     /**
