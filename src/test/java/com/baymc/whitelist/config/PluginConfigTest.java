@@ -51,8 +51,10 @@ class PluginConfigTest {
                 .verifyRateLimit();
 
         assertEquals(true, settings.enabled());
+        assertEquals(true, settings.playerEnabled());
         assertEquals(5, settings.maxFailuresPerPlayer());
         assertEquals(300, settings.playerWindowSeconds());
+        assertEquals(true, settings.ipEnabled());
         assertEquals(20, settings.maxFailuresPerIp());
         assertEquals(300, settings.ipWindowSeconds());
         assertEquals(600, settings.lockSeconds());

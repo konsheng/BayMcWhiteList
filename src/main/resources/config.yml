@@ -56,19 +56,35 @@ code:
 # 安全配置
 security:
   verify-rate-limit:
-    # 是否启用 /whitelist 邀请码验证防爆破
+    # 是否启用 /whitelist 邀请码验证防爆破总开关
+    # false 时玩家维度和 IP 维度都会被关闭, 插件只做基础邀请码格式与有效期校验
     enabled: true
 
+    # 是否启用玩家维度限制
+    # true 时同一个玩家标识连续输错邀请码会被临时锁定
+    # 建议保持开启, 这是最不容易误伤正常玩家的基础防护
+    player-enabled: true
+
     # 单个玩家在窗口期内允许的邀请码错误次数, 允许范围 1 到 1000
+    # 只有 player-enabled 为 true 时生效
     max-failures-per-player: 5
 
     # 玩家失败次数统计窗口, 单位秒, 允许范围 1 到 86400
+    # 只有 player-enabled 为 true 时生效
     player-window-seconds: 300
 
+    # 是否启用 IP 维度限制
+    # true 时同一 IP 下多个玩家连续输错邀请码也会触发临时锁定
+    # 如果服务器在 Velocity/Bungee 后面, 请先确认真实 IP 转发配置正确
+    # 如果大量玩家来自同一出口 IP, 例如宿舍, 校园网, 网吧或同家庭网络, 可单独关闭该项
+    ip-enabled: true
+
     # 单个 IP 在窗口期内允许的邀请码错误次数, 允许范围 1 到 1000
+    # 只有 ip-enabled 为 true 时生效
     max-failures-per-ip: 20
 
     # IP 失败次数统计窗口, 单位秒, 允许范围 1 到 86400
+    # 只有 ip-enabled 为 true 时生效
     ip-window-seconds: 300
 
     # 触发限制后锁定验证的时间, 单位秒, 允许范围 1 到 86400

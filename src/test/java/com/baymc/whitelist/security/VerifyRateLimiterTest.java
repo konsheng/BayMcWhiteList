@@ -44,7 +44,7 @@ class VerifyRateLimiterTest {
     @Test
     void locksIpWhenIpThresholdIsReached() {
         MutableClock clock = new MutableClock();
-        VerifyRateLimiter limiter = limiter(clock, settings(true, 10, 300, 2, 300, 600, true, 60, 60));
+        VerifyRateLimiter limiter = limiter(clock, settings(true, true, 10, 300, true, 2, 300, 600, true, 60, 60));
 
         limiter.recordFailure("player-a", IP);
         VerifyRateLimiter.Decision limited = limiter.recordFailure("player-b", IP);
@@ -52,6 +52,54 @@ class VerifyRateLimiterTest {
         assertEquals(VerifyRateLimiter.Status.RATE_LIMITED, limited.status());
         assertEquals(VerifyRateLimiter.Scope.IP, limited.scope());
         assertEquals(VerifyRateLimiter.Status.LOCKED, limiter.check("player-c", IP).status());
+    }
+
+    @Test
+    void playerLimitCanBeDisabledIndependently() {
+        MutableClock clock = new MutableClock();
+        VerifyRateLimiter limiter = limiter(clock, settings(true, false, 1, 300, true, 20, 300, 600, true, 60, 60));
+
+        limiter.recordFailure(PLAYER_KEY, "127.0.0.1");
+        VerifyRateLimiter.Decision secondFailure = limiter.recordFailure(PLAYER_KEY, "127.0.0.2");
+
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, secondFailure.status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_KEY, "127.0.0.2").status());
+    }
+
+    @Test
+    void ipLimitCanBeDisabledIndependently() {
+        MutableClock clock = new MutableClock();
+        VerifyRateLimiter limiter = limiter(clock, settings(true, true, 10, 300, false, 1, 300, 600, true, 60, 60));
+
+        limiter.recordFailure("player-a", IP);
+        VerifyRateLimiter.Decision secondFailure = limiter.recordFailure("player-b", IP);
+
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, secondFailure.status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check("player-c", IP).status());
+    }
+
+    @Test
+    void disabledPlayerAndIpDimensionsAllowAttemptsWhenMasterSwitchIsEnabled() {
+        MutableClock clock = new MutableClock();
+        VerifyRateLimiter limiter = limiter(clock, settings(true, false, 1, 300, false, 1, 300, 600, true, 60, 60));
+
+        limiter.recordFailure(PLAYER_KEY, IP);
+        limiter.recordFailure(PLAYER_KEY, IP);
+        VerifyRateLimiter.Decision thirdFailure = limiter.recordFailure(PLAYER_KEY, IP);
+
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, thirdFailure.status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_KEY, IP).status());
+    }
+
+    @Test
+    void playerScopeTakesPriorityWhenBothScopesWouldLimit() {
+        MutableClock clock = new MutableClock();
+        VerifyRateLimiter limiter = limiter(clock, settings(true, true, 1, 300, true, 1, 300, 600, true, 60, 60));
+
+        VerifyRateLimiter.Decision limited = limiter.recordFailure(PLAYER_KEY, IP);
+
+        assertEquals(VerifyRateLimiter.Status.RATE_LIMITED, limited.status());
+        assertEquals(VerifyRateLimiter.Scope.PLAYER, limited.scope());
     }
 
     @Test
@@ -89,7 +137,7 @@ class VerifyRateLimiterTest {
     @Test
     void disabledLimiterAlwaysAllowsAttempts() {
         MutableClock clock = new MutableClock();
-        VerifyRateLimiter limiter = limiter(clock, settings(false, 1, 300, 1, 300, 600, true, 60, 60));
+        VerifyRateLimiter limiter = limiter(clock, settings(false, true, 1, 300, true, 1, 300, 600, true, 60, 60));
 
         limiter.recordFailure(PLAYER_KEY, IP);
         limiter.recordFailure(PLAYER_KEY, IP);
@@ -120,7 +168,7 @@ class VerifyRateLimiterTest {
     }
 
     private static VerifyRateLimiter limiter(MutableClock clock) {
-        return limiter(clock, settings(true, 3, 300, 20, 300, 600, true, 60, 60));
+        return limiter(clock, settings(true, true, 3, 300, true, 20, 300, 600, true, 60, 60));
     }
 
     private static VerifyRateLimiter limiter(MutableClock clock, PluginConfig.VerifyRateLimitSettings settings) {
@@ -129,8 +177,10 @@ class VerifyRateLimiterTest {
 
     private static PluginConfig.VerifyRateLimitSettings settings(
             boolean enabled,
+            boolean playerEnabled,
             int maxFailuresPerPlayer,
             int playerWindowSeconds,
+            boolean ipEnabled,
             int maxFailuresPerIp,
             int ipWindowSeconds,
             int lockSeconds,
@@ -140,8 +190,10 @@ class VerifyRateLimiterTest {
     ) {
         return new PluginConfig.VerifyRateLimitSettings(
                 enabled,
+                playerEnabled,
                 maxFailuresPerPlayer,
                 playerWindowSeconds,
+                ipEnabled,
                 maxFailuresPerIp,
                 ipWindowSeconds,
                 lockSeconds,

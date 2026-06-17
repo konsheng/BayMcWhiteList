@@ -37,17 +37,18 @@ public final class VerifyRateLimiter {
         }
 
         Instant now = clock.instant();
-        Decision playerDecision = lockedDecision(playerBuckets.get(playerKey), Scope.PLAYER, now);
-        if (playerDecision.status() == Status.LOCKED) {
-            return playerDecision;
+        if (settings.playerEnabled()) {
+            Decision playerDecision = lockedDecision(playerBuckets.get(playerKey), Scope.PLAYER, now);
+            if (playerDecision.status() == Status.LOCKED) {
+                return playerDecision;
+            }
         }
 
-        if (isBlank(ip)) {
-            return Decision.allowed();
-        }
-        Decision ipDecision = lockedDecision(ipBuckets.get(ip), Scope.IP, now);
-        if (ipDecision.status() == Status.LOCKED) {
-            return ipDecision;
+        if (settings.ipEnabled() && !isBlank(ip)) {
+            Decision ipDecision = lockedDecision(ipBuckets.get(ip), Scope.IP, now);
+            if (ipDecision.status() == Status.LOCKED) {
+                return ipDecision;
+            }
         }
         return Decision.allowed();
     }
@@ -58,19 +59,20 @@ public final class VerifyRateLimiter {
         }
 
         Instant now = clock.instant();
-        boolean playerLimited = recordFailure(playerBuckets.computeIfAbsent(playerKey, key -> new Bucket(now)), now,
-                settings.playerWindowSeconds(), settings.maxFailuresPerPlayer());
-        if (playerLimited) {
-            return Decision.rateLimited(Scope.PLAYER, settings.lockSeconds());
+        if (settings.playerEnabled()) {
+            boolean playerLimited = recordFailure(playerBuckets.computeIfAbsent(playerKey, key -> new Bucket(now)), now,
+                    settings.playerWindowSeconds(), settings.maxFailuresPerPlayer());
+            if (playerLimited) {
+                return Decision.rateLimited(Scope.PLAYER, settings.lockSeconds());
+            }
         }
 
-        if (isBlank(ip)) {
-            return Decision.allowed();
-        }
-        boolean ipLimited = recordFailure(ipBuckets.computeIfAbsent(ip, key -> new Bucket(now)), now,
-                settings.ipWindowSeconds(), settings.maxFailuresPerIp());
-        if (ipLimited) {
-            return Decision.rateLimited(Scope.IP, settings.lockSeconds());
+        if (settings.ipEnabled() && !isBlank(ip)) {
+            boolean ipLimited = recordFailure(ipBuckets.computeIfAbsent(ip, key -> new Bucket(now)), now,
+                    settings.ipWindowSeconds(), settings.maxFailuresPerIp());
+            if (ipLimited) {
+                return Decision.rateLimited(Scope.IP, settings.lockSeconds());
+            }
         }
         return Decision.allowed();
     }

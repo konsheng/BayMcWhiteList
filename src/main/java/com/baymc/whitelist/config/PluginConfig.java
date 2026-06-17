@@ -113,8 +113,10 @@ public record PluginConfig(
 
         VerifyRateLimitSettings verifyRateLimit = new VerifyRateLimitSettings(
                 config.getBoolean("security.verify-rate-limit.enabled", true),
+                config.getBoolean("security.verify-rate-limit.player-enabled", true),
                 intRange(config, "security.verify-rate-limit.max-failures-per-player", 5, 1, 1000),
                 intRange(config, "security.verify-rate-limit.player-window-seconds", 300, 1, 86400),
+                config.getBoolean("security.verify-rate-limit.ip-enabled", true),
                 intRange(config, "security.verify-rate-limit.max-failures-per-ip", 20, 1, 1000),
                 intRange(config, "security.verify-rate-limit.ip-window-seconds", 300, 1, 86400),
                 intRange(config, "security.verify-rate-limit.lock-seconds", 600, 1, 86400),
@@ -238,11 +240,16 @@ public record PluginConfig(
 
     /**
      * 玩家执行 /whitelist 时的失败计数和临时锁定配置
+     *
+     * <p>enabled 是整套验证限流的总开关, playerEnabled 和 ipEnabled 分别控制玩家标识与 IP 维度
+     * 这样代理端真实 IP 未配置完成时可以单独关闭 IP 维度, 同时保留玩家维度保护
      */
     public record VerifyRateLimitSettings(
             boolean enabled,
+            boolean playerEnabled,
             int maxFailuresPerPlayer,
             int playerWindowSeconds,
+            boolean ipEnabled,
             int maxFailuresPerIp,
             int ipWindowSeconds,
             int lockSeconds,
