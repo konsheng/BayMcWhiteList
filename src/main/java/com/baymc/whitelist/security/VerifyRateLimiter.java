@@ -37,6 +37,7 @@ public final class VerifyRateLimiter {
         }
 
         Instant now = clock.instant();
+        pruneExpired(now);
         if (settings.playerEnabled()) {
             Decision playerDecision = lockedDecision(playerBuckets.get(playerKey), Scope.PLAYER, now);
             if (playerDecision.status() == Status.LOCKED) {
@@ -59,6 +60,7 @@ public final class VerifyRateLimiter {
         }
 
         Instant now = clock.instant();
+        pruneExpired(now);
         if (settings.playerEnabled()) {
             boolean playerLimited = recordFailure(playerBuckets.computeIfAbsent(playerKey, key -> new Bucket(now)), now,
                     settings.playerWindowSeconds(), settings.maxFailuresPerPlayer());
@@ -91,6 +93,7 @@ public final class VerifyRateLimiter {
         }
 
         Instant now = clock.instant();
+        pruneExpired(now);
         Instant lastNotifiedAt = notificationTimes.get(key);
         if (lastNotifiedAt != null
                 && lastNotifiedAt.plusSeconds(settings.notifyIntervalSeconds()).isAfter(now)) {
@@ -98,6 +101,24 @@ public final class VerifyRateLimiter {
         }
         notificationTimes.put(key, now);
         return true;
+    }
+
+    synchronized int trackedEntryCount() {
+        return playerBuckets.size() + ipBuckets.size() + notificationTimes.size();
+    }
+
+    private void pruneExpired(Instant now) {
+        playerBuckets.entrySet().removeIf(entry -> isExpired(entry.getValue(), now, settings.playerWindowSeconds()));
+        ipBuckets.entrySet().removeIf(entry -> isExpired(entry.getValue(), now, settings.ipWindowSeconds()));
+        notificationTimes.entrySet().removeIf(entry ->
+                !entry.getValue().plusSeconds(settings.notifyIntervalSeconds()).isAfter(now));
+    }
+
+    private static boolean isExpired(Bucket bucket, Instant now, int windowSeconds) {
+        if (bucket.lockedUntil != null) {
+            return !bucket.lockedUntil.isAfter(now);
+        }
+        return !bucket.windowStartedAt.plusSeconds(windowSeconds).isAfter(now);
     }
 
     private Decision lockedDecision(Bucket bucket, Scope scope, Instant now) {

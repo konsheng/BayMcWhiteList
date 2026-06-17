@@ -6,10 +6,12 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +40,21 @@ public final class LangManager {
      */
     public void reload(String languageFileName) {
         File file = new File(plugin.getDataFolder(), "lang/" + languageFileName);
-        language = YamlConfiguration.loadConfiguration(file);
+        language = loadLanguageFile(file, languageFileName);
         prefix = language.getString(PREFIX_PATH, "");
+    }
+
+    static YamlConfiguration loadLanguageFile(File file, String languageFileName) {
+        if (!file.isFile()) {
+            throw new IllegalArgumentException("language.file does not exist: " + languageFileName);
+        }
+        YamlConfiguration loadedLanguage = new YamlConfiguration();
+        try {
+            loadedLanguage.load(file);
+        } catch (IOException | InvalidConfigurationException exception) {
+            throw new IllegalArgumentException("language.file cannot be loaded: " + languageFileName, exception);
+        }
+        return loadedLanguage;
     }
 
     /**

@@ -30,6 +30,37 @@ class PluginConfigTest {
     }
 
     @Test
+    void rejectsSuffixLengthLongerThanHmacBase32Output() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("code.suffix-length", 53);
+
+        assertThrows(IllegalArgumentException.class, () -> PluginConfig.load(config));
+    }
+
+    @Test
+    void acceptsMaximumSupportedSuffixLength() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("code.suffix-length", 52);
+
+        assertEquals(52, PluginConfig.load(config).code().suffixLength());
+    }
+
+    @Test
+    void publicKeyRetrievalIsDisabledByDefault() {
+        PluginConfig config = PluginConfig.load(new YamlConfiguration());
+
+        assertEquals(false, config.mysql().allowPublicKeyRetrieval());
+    }
+
+    @Test
+    void publicKeyRetrievalCanBeEnabledExplicitly() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("storage.mysql.allow-public-key-retrieval", true);
+
+        assertEquals(true, PluginConfig.load(config).mysql().allowPublicKeyRetrieval());
+    }
+
+    @Test
     void defaultRemoveKickOnlinePlayerIsEnabled() {
         PluginConfig config = PluginConfig.load(new YamlConfiguration());
 

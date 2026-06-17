@@ -14,8 +14,8 @@ final class StorageLimits {
     static final int PLAYER_NAME = 32;
     /** 审计动作代码字段的最大长度 */
     static final int ACTION = 32;
-    /** 邀请码字段的最大长度, 覆盖最长前缀, 分隔符和 64 位后缀 */
-    static final int CODE = 96;
+    /** 邀请码字段的最大长度, 覆盖最长前缀, 分隔符和 52 位后缀 */
+    static final int CODE = 77;
     /** 服务器名称字段的最大长度 */
     static final int SERVER_NAME = 64;
     /** 远程地址文本字段的最大长度 */

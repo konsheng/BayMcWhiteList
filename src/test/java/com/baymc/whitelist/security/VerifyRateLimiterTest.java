@@ -167,6 +167,35 @@ class VerifyRateLimiterTest {
         assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.IP, PLAYER_KEY, IP));
     }
 
+    @Test
+    void expiredFailureAndNotificationEntriesArePruned() {
+        MutableClock clock = new MutableClock();
+        VerifyRateLimiter limiter = limiter(clock, settings(true, true, 10, 10, true, 10, 10, 600, true, 60, 10));
+
+        limiter.recordFailure(PLAYER_KEY, IP);
+        limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP);
+        assertEquals(3, limiter.trackedEntryCount());
+
+        clock.advanceSeconds(10);
+        limiter.check("another-player", "127.0.0.2");
+
+        assertEquals(0, limiter.trackedEntryCount());
+    }
+
+    @Test
+    void expiredLockedEntriesArePruned() {
+        MutableClock clock = new MutableClock();
+        VerifyRateLimiter limiter = limiter(clock, settings(true, true, 1, 300, true, 20, 300, 10, true, 60, 60));
+
+        limiter.recordFailure(PLAYER_KEY, IP);
+        assertEquals(1, limiter.trackedEntryCount());
+
+        clock.advanceSeconds(10);
+        limiter.check("another-player", "127.0.0.2");
+
+        assertEquals(0, limiter.trackedEntryCount());
+    }
+
     private static VerifyRateLimiter limiter(MutableClock clock) {
         return limiter(clock, settings(true, true, 3, 300, true, 20, 300, 600, true, 60, 60));
     }

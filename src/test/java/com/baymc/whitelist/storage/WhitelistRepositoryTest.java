@@ -83,7 +83,17 @@ class WhitelistRepositoryTest {
         assertTrue(leasedDatabase.isClosed());
     }
 
+    @Test
+    void jdbcUrlHonorsPublicKeyRetrievalSetting() {
+        assertTrue(new DatabaseManager(mysqlSettings(false)).jdbcUrl().contains("allowPublicKeyRetrieval=false"));
+        assertTrue(new DatabaseManager(mysqlSettings(true)).jdbcUrl().contains("allowPublicKeyRetrieval=true"));
+    }
+
     private static PluginConfig.MysqlSettings mysqlSettings() {
+        return mysqlSettings(false);
+    }
+
+    private static PluginConfig.MysqlSettings mysqlSettings(boolean allowPublicKeyRetrieval) {
         return new PluginConfig.MysqlSettings(
                 "127.0.0.1",
                 3306,
@@ -92,6 +102,7 @@ class WhitelistRepositoryTest {
                 "password",
                 "baymcwhitelist_",
                 false,
+                allowPublicKeyRetrieval,
                 10,
                 2,
                 10000L,

@@ -36,7 +36,7 @@ code:
   secret: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
 
   # 使用 RFC4648 Base32 字符: A-Z 和 2-7
-  # 允许范围 4 到 64, 数值越大邀请码越长, 也越难被猜测
+  # 允许范围 4 到 52, 数值越大邀请码越长, 也越难被猜测
   suffix-length: 8
 
   # 验证时会按配置时区检查今天以及前 valid-days - 1 个自然日
@@ -152,6 +152,10 @@ storage:
     # 是否在 JDBC 连接中启用 SSL
     # 如果数据库要求加密连接则改为 true, 否则保持 false
     use-ssl: false
+
+    # 是否允许 MySQL Connector/J 从服务端请求 RSA 公钥
+    # 仅在未启用 SSL 且数据库账号认证方式需要时打开; 生产环境建议优先启用 SSL 或配置可信公钥
+    allow-public-key-retrieval: false
 
     # HikariCP 连接池配置
     # 时间单位均为毫秒, 如果不确定含义建议保持默认值

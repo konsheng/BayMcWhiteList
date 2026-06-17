@@ -262,9 +262,10 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
             return;
         }
         try (InputStream inputStream = getResource(resourcePath)) {
-            if (inputStream != null) {
-                saveResource(resourcePath, false);
+            if (inputStream == null) {
+                throw new IllegalArgumentException("language.file does not exist and is not bundled: " + fileName);
             }
+            saveResource(resourcePath, false);
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to inspect bundled language resource", exception);
         }

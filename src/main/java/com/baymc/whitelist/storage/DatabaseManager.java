@@ -66,7 +66,7 @@ public final class DatabaseManager implements AutoCloseable {
     /**
      * 判断调用方当前是否可以从连接池借出连接
      */
-    public boolean isReady() {
+    public synchronized boolean isReady() {
         return ready && dataSource != null && !dataSource.isClosed();
     }
 
@@ -80,11 +80,12 @@ public final class DatabaseManager implements AutoCloseable {
     /**
      * 借出数据库连接; 如果启动未完成则快速失败
      */
-    public Connection getConnection() throws SQLException {
-        if (!isReady()) {
+    public synchronized Connection getConnection() throws SQLException {
+        HikariDataSource currentDataSource = dataSource;
+        if (!ready || currentDataSource == null || currentDataSource.isClosed()) {
             throw new SQLException("Database is not ready");
         }
-        return dataSource.getConnection();
+        return currentDataSource.getConnection();
     }
 
     /**
@@ -206,7 +207,7 @@ public final class DatabaseManager implements AutoCloseable {
     /**
      * 根据配置值和固定安全默认值构建 JDBC 连接地址
      */
-    private String jdbcUrl() {
+    String jdbcUrl() {
         return "jdbc:mysql://"
                 + settings.host()
                 + ":"
@@ -215,7 +216,8 @@ public final class DatabaseManager implements AutoCloseable {
                 + settings.database()
                 + "?useSSL="
                 + settings.useSsl()
-                + "&allowPublicKeyRetrieval=true"
+                + "&allowPublicKeyRetrieval="
+                + settings.allowPublicKeyRetrieval()
                 + "&useUnicode=true"
                 + "&characterEncoding=utf8"
                 + "&serverTimezone=UTC";

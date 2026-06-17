@@ -22,6 +22,7 @@ public record PluginConfig(
         RemoveSettings remove,
         SecuritySettings security
 ) {
+    private static final int MAX_CODE_SUFFIX_LENGTH = 52;
     private static final Pattern CODE_PREFIX_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,24}");
     private static final Pattern TABLE_PREFIX_PATTERN = Pattern.compile("[A-Za-z0-9_]{0,32}");
     private static final Pattern LANGUAGE_FILE_PATTERN = Pattern.compile("[A-Za-z0-9_.-]+\\.ya?ml");
@@ -64,7 +65,7 @@ public record PluginConfig(
         CodeSettings code = new CodeSettings(
                 prefix,
                 secret,
-                intRange(config, "code.suffix-length", 8, 4, 64),
+                intRange(config, "code.suffix-length", 8, 4, MAX_CODE_SUFFIX_LENGTH),
                 intRange(config, "code.valid-days", 7, 1, 365),
                 zoneId,
                 config.getBoolean("code.case-sensitive", false)
@@ -93,6 +94,7 @@ public record PluginConfig(
                 string(config, "storage.mysql.password", "password"),
                 tablePrefix,
                 config.getBoolean("storage.mysql.use-ssl", false),
+                config.getBoolean("storage.mysql.allow-public-key-retrieval", false),
                 maximumPoolSize,
                 minimumIdle,
                 longRange(config, "storage.mysql.pool.connection-timeout", 10000L, 250L, 120000L),
@@ -206,6 +208,7 @@ public record PluginConfig(
             String password,
             String tablePrefix,
             boolean useSsl,
+            boolean allowPublicKeyRetrieval,
             int maximumPoolSize,
             int minimumIdle,
             long connectionTimeout,
