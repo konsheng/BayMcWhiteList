@@ -4,7 +4,9 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 import java.time.DateTimeException;
 import java.time.ZoneId;
+import java.util.EnumSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -111,7 +113,10 @@ public record PluginConfig(
                 requirePattern(string(config, "language.file", "zh_CN.yml"), LANGUAGE_FILE_PATTERN, "language.file")
         );
 
-        RemoveSettings remove = new RemoveSettings(config.getBoolean("remove.kick-online-player", true));
+        RemoveSettings remove = new RemoveSettings(
+                config.getBoolean("remove.kick-online-player", true),
+                serverModes(config, "remove.kick-server-modes", Set.of(ServerMode.PROTECTED))
+        );
 
         VerifyRateLimitSettings verifyRateLimit = new VerifyRateLimitSettings(
                 config.getBoolean("security.verify-rate-limit.enabled", true),
@@ -179,6 +184,27 @@ public record PluginConfig(
     }
 
     /**
+     * 读取服务器模式列表配置, 用于控制只在指定类型服务器上执行某些动作
+     *
+     * <p>未显式配置时使用传入默认值; 显式配置为空列表时表示所有模式都不启用该动作
+     */
+    private static Set<ServerMode> serverModes(FileConfiguration config, String path, Set<ServerMode> fallback) {
+        if (!config.isSet(path)) {
+            return Set.copyOf(fallback);
+        }
+
+        EnumSet<ServerMode> modes = EnumSet.noneOf(ServerMode.class);
+        for (String raw : config.getStringList(path)) {
+            try {
+                modes.add(ServerMode.from(raw));
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException(path + " contains unsupported server mode: " + raw, exception);
+            }
+        }
+        return Set.copyOf(modes);
+    }
+
+    /**
      * 邀请码签名和校验配置
      */
     public record CodeSettings(
@@ -231,8 +257,14 @@ public record PluginConfig(
 
     /**
      * 撤销白名单后的本服处理策略
+     *
+     * <p>kickOnlinePlayer 是总开关; kickServerModes 决定哪些服务器模式会执行本服在线玩家踢出
+     * 默认只在 protected 模式踢出, 登录服保留玩家在线以便重新查看状态或再次验证
      */
-    public record RemoveSettings(boolean kickOnlinePlayer) {
+    public record RemoveSettings(boolean kickOnlinePlayer, Set<ServerMode> kickServerModes) {
+        public boolean shouldKickIn(ServerMode mode) {
+            return kickOnlinePlayer && kickServerModes.contains(mode);
+        }
     }
 
     /**

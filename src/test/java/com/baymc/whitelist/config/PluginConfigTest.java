@@ -3,6 +3,9 @@ package com.baymc.whitelist.config;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -65,6 +68,9 @@ class PluginConfigTest {
         PluginConfig config = PluginConfig.load(new YamlConfiguration());
 
         assertEquals(true, config.remove().kickOnlinePlayer());
+        assertEquals(Set.of(PluginConfig.ServerMode.PROTECTED), config.remove().kickServerModes());
+        assertEquals(false, config.remove().shouldKickIn(PluginConfig.ServerMode.LOGIN));
+        assertEquals(true, config.remove().shouldKickIn(PluginConfig.ServerMode.PROTECTED));
     }
 
     @Test
@@ -73,6 +79,39 @@ class PluginConfigTest {
         config.set("remove.kick-online-player", false);
 
         assertEquals(false, PluginConfig.load(config).remove().kickOnlinePlayer());
+        assertEquals(false, PluginConfig.load(config).remove().shouldKickIn(PluginConfig.ServerMode.PROTECTED));
+    }
+
+    @Test
+    void removeKickServerModesCanBeCustomized() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("remove.kick-server-modes", List.of("login", "protected"));
+
+        PluginConfig.RemoveSettings remove = PluginConfig.load(config).remove();
+
+        assertEquals(Set.of(PluginConfig.ServerMode.LOGIN, PluginConfig.ServerMode.PROTECTED), remove.kickServerModes());
+        assertEquals(true, remove.shouldKickIn(PluginConfig.ServerMode.LOGIN));
+        assertEquals(true, remove.shouldKickIn(PluginConfig.ServerMode.PROTECTED));
+    }
+
+    @Test
+    void removeKickServerModesCanBeEmpty() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("remove.kick-server-modes", List.of());
+
+        PluginConfig.RemoveSettings remove = PluginConfig.load(config).remove();
+
+        assertEquals(Set.of(), remove.kickServerModes());
+        assertEquals(false, remove.shouldKickIn(PluginConfig.ServerMode.LOGIN));
+        assertEquals(false, remove.shouldKickIn(PluginConfig.ServerMode.PROTECTED));
+    }
+
+    @Test
+    void rejectsInvalidRemoveKickServerMode() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("remove.kick-server-modes", List.of("lobby"));
+
+        assertThrows(IllegalArgumentException.class, () -> PluginConfig.load(config));
     }
 
     @Test

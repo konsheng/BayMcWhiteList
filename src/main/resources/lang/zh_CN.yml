@@ -84,6 +84,7 @@ admin:
     - " <dark_gray>▪</dark_gray> <gray>最后活跃: </gray><white><last_seen_at></white>"
   status-not-whitelisted: "<prefix><yellow>📊 档案查询: 玩家 <white><player></white> <red>[尚未通过验证]</red></yellow>"
   remove-success: "<prefix><green>🗑️ 已成功移除玩家 <gold><player></gold> 的记录</green>"
+  remove-success-kick-skipped-mode: "<prefix><green>🗑️ 已移除玩家 <gold><player></gold> 的白名单记录, 当前服务器模式 <white><server_mode></white> 未启用撤销踢出</green>"
   remove-success-kicked: "<prefix><green>🗑️ 已移除玩家 <gold><player></gold> 的白名单记录, 并踢出本服在线玩家</green>"
   remove-success-offline: "<prefix><green>🗑️ 已移除玩家 <gold><player></gold> 的白名单记录, 玩家当前不在本服在线</green>"
   remove-not-found: "<prefix><yellow>🔍 移除失败: 数据库中未找到玩家 <white><player></white> 的记录</yellow>"

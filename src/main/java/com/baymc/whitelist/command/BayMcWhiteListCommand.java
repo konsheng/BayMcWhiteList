@@ -650,6 +650,14 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             ));
             return;
         }
+        if (!runtime.config().remove().shouldKickIn(runtime.config().server().mode())) {
+            runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                    sender,
+                    "admin.remove-success-kick-skipped-mode",
+                    removalPlaceholders(runtime, record)
+            ));
+            return;
+        }
 
         runtime.scheduler().runGlobal(() -> {
             Player onlinePlayer = findOnlineRemovedPlayer(record);
@@ -694,7 +702,13 @@ public final class BayMcWhiteListCommand implements TabExecutor {
         return Map.of(
                 "player", value(runtime, record.playerName()),
                 "player_key", value(runtime, record.playerKey()),
-                "uuid", value(runtime, record.playerUuid())
+                "uuid", value(runtime, record.playerUuid()),
+                "server_mode", state(
+                        runtime,
+                        runtime.config().server().mode() == PluginConfig.ServerMode.LOGIN
+                                ? "state.mode-login"
+                                : "state.mode-protected"
+                )
         );
     }
 
