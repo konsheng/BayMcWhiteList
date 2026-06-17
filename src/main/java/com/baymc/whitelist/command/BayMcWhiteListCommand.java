@@ -63,7 +63,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             String subcommand = args[0].toLowerCase(Locale.ROOT);
             switch (subcommand) {
                 case "add" -> runtimeOwnedByAsync = handleAdd(runtime, sender, args);
-                case "generate" -> handleGenerate(runtime, sender, args);
+                case "generate" -> runtimeOwnedByAsync = handleGenerate(runtime, sender, args);
                 case "status" -> runtimeOwnedByAsync = handleStatus(runtime, sender, args);
                 case "remove" -> runtimeOwnedByAsync = handleRemove(runtime, sender, args);
                 case "reload" -> handleReload(runtime, sender, args);
@@ -195,27 +195,66 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     /**
      * 生成绑定玩家的邀请码, 但不写入任何数据库状态
      */
-    private void handleGenerate(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
+    private boolean handleGenerate(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
         if (!hasPermission(runtime, sender, "baymcwhitelist.generate")) {
-            return;
+            return false;
         }
         if (!CommandBoundaries.hasExactArgumentCount(args, 2)) {
             runtime.lang().send(sender, "usage.generate");
-            return;
+            return false;
         }
 
-        Optional<PlayerIdentity> identity = resolveGenerationIdentity(runtime, sender, args[1]);
-        if (identity.isEmpty()) {
-            return;
+        String input = args[1].trim();
+        Optional<UUID> inputUuid = parseUuid(input);
+        boolean validPlayerName = inputUuid.isEmpty() && isValidPlayerName(input);
+        Player onlinePlayer = findOnlinePlayer(input, inputUuid);
+        CommandBoundaries.GenerateTargetDecision decision = CommandBoundaries.generateTargetDecision(
+                inputUuid.isPresent(),
+                validPlayerName,
+                onlinePlayer != null
+        );
+
+        switch (decision) {
+            case ONLINE_PLAYER -> {
+                PlayerIdentity identity = PlayerIdentity.fromPlayer(onlinePlayer, runtime.config().player().idType());
+                runtime.lang().send(sender, "admin.generate-online-found", identityPlaceholders(runtime, identity));
+                sendGeneratedCode(runtime, sender, identity);
+                return false;
+            }
+            case INVALID_IDENTIFIER -> {
+                runtime.lang().send(sender, "common.invalid-player-identifier");
+                return false;
+            }
+            case UUID_LOOKUP -> runtime.lang().send(
+                    sender,
+                    "admin.generate-lookup-uuid-start",
+                    Map.of("uuid", inputUuid.orElseThrow().toString())
+            );
+            case NAME_LOOKUP -> runtime.lang().send(
+                    sender,
+                    "admin.generate-lookup-name-start",
+                    Map.of("player", input)
+            );
         }
 
-        GeneratedCode generatedCode = runtime.inviteCodeService().generate(identity.get().key());
-        runtime.lang().send(sender, "admin.generate-success", Map.of(
-                "player", identity.get().name(),
-                "player_key", identity.get().key(),
-                "code", generatedCode.code(),
-                "expire_time", DATE_TIME_FORMATTER.format(generatedCode.expiresAt())
-        ));
+        runtime.scheduler().runAsync(() -> {
+            try {
+                PlayerIdentity identity = resolveOfflineGenerationIdentity(runtime, sender, input, inputUuid);
+                if (identity == null) {
+                    return;
+                }
+                runtime.scheduler().runForSender(sender, () -> {
+                    runtime.lang().send(sender, "admin.generate-profile-found", identityPlaceholders(runtime, identity));
+                    sendGeneratedCode(runtime, sender, identity);
+                });
+            } catch (MojangProfileLookupException exception) {
+                plugin.getLogger().warning("Failed to query Mojang profile for invite generation: " + exception.getMessage());
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "admin.generate-lookup-failed"));
+            } finally {
+                runtime.close();
+            }
+        });
+        return true;
     }
 
     /**
@@ -413,11 +452,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
 
     private AddTarget addTargetFromProfile(PluginConfig.PlayerIdType idType, MojangProfile profile) {
         return new AddTarget(
-                new PlayerIdentity(
-                        PlayerIdentity.keyFor(idType, profile.uuid(), profile.name()),
-                        profile.uuid(),
-                        profile.name()
-                ),
+                identityFromProfile(idType, profile),
                 true
         );
     }
@@ -445,42 +480,96 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     private Map<String, String> addPlaceholders(BayMcWhiteListPlugin.RuntimeState runtime, AddTarget target) {
-        PlayerIdentity identity = target.identity();
-        return Map.of(
-                "player", identity.name(),
-                "player_key", identity.key(),
-                "uuid", identity.uuid() == null ? state(runtime, "state.none") : identity.uuid().toString()
-        );
+        return identityPlaceholders(runtime, target.identity());
     }
 
     /**
      * 为邀请码生成操作解析目标身份
      */
-    private Optional<PlayerIdentity> resolveGenerationIdentity(
+    private @Nullable PlayerIdentity resolveOfflineGenerationIdentity(
             BayMcWhiteListPlugin.RuntimeState runtime,
             CommandSender sender,
-            String input
-    ) {
-        PluginConfig.PlayerIdType idType = runtime.config().player().idType();
-        if (idType == PluginConfig.PlayerIdType.NAME) {
-            if (!isValidPlayerName(input)) {
-                runtime.lang().send(sender, "common.invalid-player-identifier");
-                return Optional.empty();
+            String input,
+            Optional<UUID> inputUuid
+    ) throws MojangProfileLookupException {
+        if (inputUuid.isPresent()) {
+            Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByUuid(inputUuid.get());
+            if (profile.isEmpty()) {
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                        sender,
+                        "admin.generate-uuid-not-found",
+                        Map.of("uuid", inputUuid.get().toString())
+                ));
+                return null;
             }
-            return Optional.of(PlayerIdentity.forName(input));
+            return identityFromProfile(runtime.config().player().idType(), profile.get());
         }
 
-        Optional<UUID> uuid = parseUuid(input);
-        if (uuid.isPresent()) {
-            return Optional.of(PlayerIdentity.forUuid(uuid.get(), input));
+        Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByName(input);
+        if (profile.isEmpty()) {
+            runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                    sender,
+                    "admin.generate-name-not-found",
+                    Map.of("player", input)
+            ));
+            return null;
         }
+        return identityFromProfile(runtime.config().player().idType(), profile.get());
+    }
 
-        Player onlinePlayer = Bukkit.getPlayerExact(input);
-        if (onlinePlayer == null) {
-            runtime.lang().send(sender, "admin.player-not-online-for-uuid-mode");
-            return Optional.empty();
+    private void sendGeneratedCode(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender,
+            PlayerIdentity identity
+    ) {
+        GeneratedCode generatedCode = runtime.inviteCodeService().generate(identity.key());
+        runtime.lang().send(sender, "admin.generate-success", generatedCodePlaceholders(runtime, identity, generatedCode));
+    }
+
+    private Map<String, String> generatedCodePlaceholders(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            PlayerIdentity identity,
+            GeneratedCode generatedCode
+    ) {
+        return Map.of(
+                "player", identity.name(),
+                "player_key", identity.key(),
+                "uuid", uuidValue(runtime, identity.uuid()),
+                "id_type", state(runtime, runtime.config().player().idType() == PluginConfig.PlayerIdType.UUID ? "state.id-type-uuid" : "state.id-type-name"),
+                "code", generatedCode.code(),
+                "expire_time", DATE_TIME_FORMATTER.format(generatedCode.expiresAt())
+        );
+    }
+
+    private Map<String, String> identityPlaceholders(BayMcWhiteListPlugin.RuntimeState runtime, PlayerIdentity identity) {
+        return Map.of(
+                "player", identity.name(),
+                "player_key", identity.key(),
+                "uuid", uuidValue(runtime, identity.uuid())
+        );
+    }
+
+    private PlayerIdentity identityFromProfile(PluginConfig.PlayerIdType idType, MojangProfile profile) {
+        return new PlayerIdentity(
+                PlayerIdentity.keyFor(idType, profile.uuid(), profile.name()),
+                profile.uuid(),
+                profile.name()
+        );
+    }
+
+    private @Nullable Player findOnlinePlayer(String input, Optional<UUID> inputUuid) {
+        if (inputUuid.isPresent()) {
+            UUID uuid = inputUuid.get();
+            return Bukkit.getOnlinePlayers().stream()
+                    .filter(player -> player.getUniqueId().equals(uuid))
+                    .findFirst()
+                    .orElse(null);
         }
-        return Optional.of(PlayerIdentity.fromPlayer(onlinePlayer, idType));
+        return Bukkit.getPlayerExact(input);
+    }
+
+    private String uuidValue(BayMcWhiteListPlugin.RuntimeState runtime, UUID uuid) {
+        return uuid == null ? state(runtime, "state.none") : uuid.toString();
     }
 
     /**

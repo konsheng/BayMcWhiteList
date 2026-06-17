@@ -185,4 +185,38 @@ class CommandBoundariesTest {
 
         assertEquals(CommandBoundaries.RemoveTargetDecision.NAME_MODE_NAME, decision);
     }
+
+    @Test
+    void generatePrefersOnlinePlayerBeforeMojangLookup() {
+        CommandBoundaries.GenerateTargetDecision decision = CommandBoundaries.generateTargetDecision(
+                false,
+                true,
+                true
+        );
+
+        assertEquals(CommandBoundaries.GenerateTargetDecision.ONLINE_PLAYER, decision);
+    }
+
+    @Test
+    void generateUsesMojangLookupForOfflineTargets() {
+        assertEquals(
+                CommandBoundaries.GenerateTargetDecision.UUID_LOOKUP,
+                CommandBoundaries.generateTargetDecision(true, false, false)
+        );
+        assertEquals(
+                CommandBoundaries.GenerateTargetDecision.NAME_LOOKUP,
+                CommandBoundaries.generateTargetDecision(false, true, false)
+        );
+    }
+
+    @Test
+    void generateRejectsInvalidOfflineIdentifier() {
+        CommandBoundaries.GenerateTargetDecision decision = CommandBoundaries.generateTargetDecision(
+                false,
+                false,
+                false
+        );
+
+        assertEquals(CommandBoundaries.GenerateTargetDecision.INVALID_IDENTIFIER, decision);
+    }
 }

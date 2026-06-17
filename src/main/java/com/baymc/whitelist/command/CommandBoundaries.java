@@ -102,6 +102,23 @@ final class CommandBoundaries {
         return RemoveTargetDecision.UUID_MODE_OFFLINE_NAME_REQUIRES_UUID;
     }
 
+    static GenerateTargetDecision generateTargetDecision(
+            boolean inputIsUuid,
+            boolean validPlayerName,
+            boolean targetOnline
+    ) {
+        if (targetOnline) {
+            return GenerateTargetDecision.ONLINE_PLAYER;
+        }
+        if (inputIsUuid) {
+            return GenerateTargetDecision.UUID_LOOKUP;
+        }
+        if (validPlayerName) {
+            return GenerateTargetDecision.NAME_LOOKUP;
+        }
+        return GenerateTargetDecision.INVALID_IDENTIFIER;
+    }
+
     /**
      * 玩家 /whitelist 命令在进入邀请码校验前可能得到的边界判断结果
      */
@@ -131,6 +148,13 @@ final class CommandBoundaries {
         /** UUID 模式下离线玩家名不可用于删除, 必须要求管理员输入 UUID */
         UUID_MODE_OFFLINE_NAME_REQUIRES_UUID,
         /** 输入既不是 UUID, 也不是合法玩家名 */
+        INVALID_IDENTIFIER
+    }
+
+    enum GenerateTargetDecision {
+        ONLINE_PLAYER,
+        UUID_LOOKUP,
+        NAME_LOOKUP,
         INVALID_IDENTIFIER
     }
 }
