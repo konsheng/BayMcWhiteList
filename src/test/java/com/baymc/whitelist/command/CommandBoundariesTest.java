@@ -22,6 +22,7 @@ class CommandBoundariesTest {
         CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
                 false,
                 true,
+                true,
                 PluginConfig.ServerMode.LOGIN,
                 1
         );
@@ -37,6 +38,7 @@ class CommandBoundariesTest {
         CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
                 true,
                 false,
+                true,
                 PluginConfig.ServerMode.LOGIN,
                 1
         );
@@ -45,11 +47,60 @@ class CommandBoundariesTest {
     }
 
     /**
-     * 受保护服务器不能接受 /whitelist 验证请求
+     * 玩家缺少自助状态查询权限时应被拒绝
+     */
+    @Test
+    void whitelistStatusRejectsMissingSelfStatusPermission() {
+        CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
+                true,
+                true,
+                false,
+                PluginConfig.ServerMode.LOGIN,
+                0
+        );
+
+        assertEquals(CommandBoundaries.WhitelistDecision.NO_PERMISSION, decision);
+    }
+
+    /**
+     * 无参数 /whitelist 用于查询自己的白名单状态
+     */
+    @Test
+    void whitelistWithoutArgumentsQueriesSelfStatus() {
+        CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
+                true,
+                false,
+                true,
+                PluginConfig.ServerMode.LOGIN,
+                0
+        );
+
+        assertEquals(CommandBoundaries.WhitelistDecision.STATUS, decision);
+    }
+
+    /**
+     * 自助状态查询不改变白名单状态, 因此受保护服务器也允许执行
+     */
+    @Test
+    void whitelistSelfStatusAllowsProtectedServerMode() {
+        CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
+                true,
+                false,
+                true,
+                PluginConfig.ServerMode.PROTECTED,
+                0
+        );
+
+        assertEquals(CommandBoundaries.WhitelistDecision.STATUS, decision);
+    }
+
+    /**
+     * 受保护服务器不能接受 /whitelist 邀请码验证请求
      */
     @Test
     void whitelistRejectsProtectedServerMode() {
         CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
+                true,
                 true,
                 true,
                 PluginConfig.ServerMode.PROTECTED,
@@ -60,17 +111,28 @@ class CommandBoundariesTest {
     }
 
     /**
-     * 玩家验证命令必须且只能携带一个邀请码参数
+     * 玩家验证命令携带一个邀请码参数时进入验证流程
      */
     @Test
-    void whitelistRequiresExactlyOneArgument() {
+    void whitelistWithOneArgumentVerifiesInviteCode() {
+        assertEquals(
+                CommandBoundaries.WhitelistDecision.VERIFY,
+                CommandBoundaries.whitelistDecision(true, true, true, PluginConfig.ServerMode.LOGIN, 1)
+        );
+    }
+
+    /**
+     * 多余参数无法判定为状态查询或邀请码验证时返回用法提示
+     */
+    @Test
+    void whitelistRejectsExtraArguments() {
         assertEquals(
                 CommandBoundaries.WhitelistDecision.USAGE,
-                CommandBoundaries.whitelistDecision(true, true, PluginConfig.ServerMode.LOGIN, 0)
+                CommandBoundaries.whitelistDecision(true, true, true, PluginConfig.ServerMode.LOGIN, 2)
         );
         assertEquals(
                 CommandBoundaries.WhitelistDecision.USAGE,
-                CommandBoundaries.whitelistDecision(true, true, PluginConfig.ServerMode.LOGIN, 2)
+                CommandBoundaries.whitelistDecision(true, true, true, PluginConfig.ServerMode.PROTECTED, 2)
         );
     }
 

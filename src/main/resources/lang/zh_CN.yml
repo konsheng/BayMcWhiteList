@@ -8,7 +8,7 @@ common:
   missing-language-key: "<prefix><red>⚙️ 语言文件缺少节点: <white><key></white></red>"
 
 usage:
-  whitelist: "<prefix><yellow>💡 用法: <gold>/whitelist <white><邀请码></white></gold></yellow>"
+  whitelist: "<prefix><yellow>💡 用法: <gold>/whitelist</gold> <gray>或</gray> <gold>/whitelist <white><邀请码></white></gold></yellow>"
   add: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist add <white><玩家名|UUID></white></gold></yellow>"
   generate: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist generate <white><玩家名|UUID></white></gold></yellow>"
   status: "<prefix><yellow>💡 用法: <gold>/baymcwhitelist status <white><玩家名|UUID></white></gold></yellow>"
@@ -23,6 +23,21 @@ code:
   invalid-or-expired: "<prefix><red>❌ 该邀请码无效或已过期, 请核对后重试</red>"
   success: "<prefix><green>✨ 验证成功! 欢迎加入 </green><bold><gradient:#00BFFF:#1E90FF>BayMc</gradient><gradient:#FFFFFF:#D3D3D3>WhiteList</gradient></bold><green>, 祝您游戏愉快</green>"
   already-whitelisted: "<prefix><yellow>ℹ️ 您此前已经通过了验证, 无需重复操作</yellow>"
+
+player:
+  status-whitelisted:
+    - "<prefix><green>📊 你已经通过白名单验证</green>"
+    - " <dark_gray>▪</dark_gray> <gray>玩家: </gray><white><player></white>"
+    - " <dark_gray>▪</dark_gray> <gray>玩家标识: </gray><white><player_key></white>"
+    - " <dark_gray>▪</dark_gray> <gray><gradient:#DDA0DD:#9370DB>UUID</gradient>: </gray><white><uuid></white>"
+    - " <dark_gray>▪</dark_gray> <gray>使用邀码: </gray><yellow><code></yellow>"
+    - " <dark_gray>▪</dark_gray> <gray>签发日期: </gray><white><issue_date></white>"
+    - " <dark_gray>▪</dark_gray> <gray>验证时间: </gray><white><used_at></white>"
+    - " <dark_gray>▪</dark_gray> <gray>来源节点: </gray><white><source_server></white>"
+    - " <dark_gray>▪</dark_gray> <gray>最后活跃: </gray><white><last_seen_at></white>"
+  status-not-whitelisted:
+    - "<prefix><yellow>📊 你尚未通过白名单验证</yellow>"
+    - "<prefix><gray>请前往登录服使用 <green>/whitelist <邀请码></green> 完成验证</gray>"
 
 admin:
   reload-started: "<prefix><yellow>🔄 正在尝试重载配置文件, 语言文件及数据库连接</yellow>"
@@ -77,6 +92,7 @@ admin:
     - " <dark_gray>▪</dark_gray> <gray>主命令: </gray><white>/baymcwhitelist</white> <dark_gray>|</dark_gray> <gray>别名: </gray><white>/wl</white>"
     - " <dark_gray>▪</dark_gray> <gray>插件信息: </gray><gold>/baymcwhitelist</gold> <dark_gray>或</dark_gray> <gold>/baymcwhitelist info</gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.info</white>"
     - " <dark_gray>▪</dark_gray> <gray>帮助信息: </gray><gold>/baymcwhitelist help</gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.help</white>"
+    - " <dark_gray>▪</dark_gray> <gray>自助查询: </gray><green>/whitelist</green> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.status.self</white>"
     - " <dark_gray>▪</dark_gray> <gray>玩家过白: </gray><green>/whitelist <邀请码></green> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.use</white>"
     - " <dark_gray>▪</dark_gray> <gray>手动添加: </gray><gold>/baymcwhitelist add <玩家名|UUID></gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.add</white>"
     - " <dark_gray>▪</dark_gray> <gray>生成邀码: </gray><gold>/baymcwhitelist generate <玩家名|UUID></gold> <dark_gray>|</dark_gray> <gray>权限: </gray><white>baymcwhitelist.generate</white>"

@@ -6,6 +6,7 @@ import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.identity.PlayerIdentity;
 import com.baymc.whitelist.security.VerifyRateLimiter;
 import com.baymc.whitelist.storage.WhitelistLogEntry;
+import com.baymc.whitelist.storage.WhitelistRecord;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -18,13 +19,17 @@ import org.jetbrains.annotations.Nullable;
 import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Handles the player-facing /whitelist invite-code command.
  */
 public final class WhitelistCommand implements TabExecutor {
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private final BayMcWhiteListPlugin plugin;
 
     public WhitelistCommand(BayMcWhiteListPlugin plugin) {
@@ -45,6 +50,7 @@ public final class WhitelistCommand implements TabExecutor {
             CommandBoundaries.WhitelistDecision decision = CommandBoundaries.whitelistDecision(
                     player != null,
                     player != null && player.hasPermission("baymcwhitelist.use"),
+                    player != null && player.hasPermission("baymcwhitelist.status.self"),
                     runtime.config().server().mode(),
                     args.length
             );
@@ -53,16 +59,29 @@ public final class WhitelistCommand implements TabExecutor {
                 case NO_PERMISSION -> runtime.lang().send(sender, "common.no-permission");
                 case LOGIN_SERVER_ONLY -> runtime.lang().send(sender, "code.login-server-only");
                 case USAGE -> runtime.lang().send(sender, "usage.whitelist");
-                case OK -> {
+                case STATUS, VERIFY -> {
                 }
             }
-            if (decision != CommandBoundaries.WhitelistDecision.OK) {
+            if (decision != CommandBoundaries.WhitelistDecision.STATUS
+                    && decision != CommandBoundaries.WhitelistDecision.VERIFY) {
                 return true;
             }
 
             PlayerIdentity identity = PlayerIdentity.fromPlayer(player, runtime.config().player().idType());
             if (!runtime.databaseReady()) {
                 runtime.lang().send(player, "mysql.not-ready");
+                return true;
+            }
+
+            if (decision == CommandBoundaries.WhitelistDecision.STATUS) {
+                runtime.scheduler().runAsync(() -> {
+                    try {
+                        sendSelfStatus(runtime, player, identity);
+                    } finally {
+                        runtime.close();
+                    }
+                });
+                runtimeOwnedByAsync = true;
                 return true;
             }
 
@@ -92,6 +111,51 @@ public final class WhitelistCommand implements TabExecutor {
             @NotNull String[] args
     ) {
         return List.of();
+    }
+
+    private void sendSelfStatus(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            Player player,
+            PlayerIdentity identity
+    ) {
+        try {
+            Optional<WhitelistRecord> record = runtime.repository().findByKey(identity.key());
+            runtime.scheduler().runForPlayer(player, () -> {
+                if (record.isPresent()) {
+                    runtime.lang().send(player, "player.status-whitelisted",
+                            selfStatusPlaceholders(runtime, identity, record.orElseThrow()));
+                    return;
+                }
+                runtime.lang().send(player, "player.status-not-whitelisted",
+                        selfStatusPlaceholders(runtime, identity, null));
+            });
+        } catch (SQLException exception) {
+            plugin.getLogger().severe("Failed to query whitelist self status for " + identity.name() + ".");
+            exception.printStackTrace();
+            runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "mysql.operation-failed"));
+        }
+    }
+
+    /**
+     * 构建玩家自助状态查询占位符
+     *
+     * <p>自助查询只展示当前玩家自己的记录; 如果数据库记录缺少 UUID, 会回退到当前在线玩家实体的 UUID
+     */
+    private Map<String, String> selfStatusPlaceholders(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            PlayerIdentity identity,
+            @Nullable WhitelistRecord record
+    ) {
+        return Map.of(
+                "player", valueOrNone(runtime, record == null ? identity.name() : firstText(record.playerName(), identity.name())),
+                "player_key", valueOrNone(runtime, identity.key()),
+                "uuid", valueOrNone(runtime, record == null ? identity.uuid() : firstText(record.playerUuid(), String.valueOf(identity.uuid()))),
+                "code", valueOrNone(runtime, record == null ? null : record.code()),
+                "issue_date", valueOrNone(runtime, record == null ? null : record.issueDate()),
+                "used_at", format(runtime, record == null ? null : record.usedAt()),
+                "source_server", valueOrNone(runtime, record == null ? null : record.sourceServer()),
+                "last_seen_at", format(runtime, record == null ? null : record.lastSeenAt())
+        );
     }
 
     private void verifyWithSecurity(
@@ -309,8 +373,20 @@ public final class WhitelistCommand implements TabExecutor {
         return scope == VerifyRateLimiter.Scope.IP ? "security.scope-ip" : "security.scope-player";
     }
 
-    private static String valueOrNone(BayMcWhiteListPlugin.RuntimeState runtime, String value) {
-        return value == null || value.isBlank() ? runtime.lang().plain("state.none") : value;
+    private static String valueOrNone(BayMcWhiteListPlugin.RuntimeState runtime, Object value) {
+        if (value == null) {
+            return runtime.lang().plain("state.none");
+        }
+        String text = String.valueOf(value);
+        return text.isBlank() ? runtime.lang().plain("state.none") : text;
+    }
+
+    private static String format(BayMcWhiteListPlugin.RuntimeState runtime, LocalDateTime dateTime) {
+        return dateTime == null ? runtime.lang().plain("state.none") : DATE_TIME_FORMATTER.format(dateTime);
+    }
+
+    private static String firstText(String primary, String fallback) {
+        return primary == null || primary.isBlank() ? fallback : primary;
     }
 
     private static LocalDateTime now(BayMcWhiteListPlugin.RuntimeState runtime) {
