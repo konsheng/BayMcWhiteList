@@ -109,7 +109,7 @@ final class CommandBoundaries {
         if (targetOnline) {
             return RemoveTargetDecision.ONLINE_UUID_NAME;
         }
-        return RemoveTargetDecision.UUID_MODE_OFFLINE_NAME_REQUIRES_UUID;
+        return RemoveTargetDecision.UUID_MODE_OFFLINE_NAME_LOOKUP;
     }
 
     static GenerateTargetDecision generateTargetDecision(
@@ -157,8 +157,8 @@ final class CommandBoundaries {
         NAME_MODE_NAME,
         /** UUID 模式下目标玩家在线, 可以从在线实体解析 UUID */
         ONLINE_UUID_NAME,
-        /** UUID 模式下离线玩家名不可用于删除, 必须要求管理员输入 UUID */
-        UUID_MODE_OFFLINE_NAME_REQUIRES_UUID,
+        /** UUID 模式下离线正版玩家名需要通过 Mojang 档案解析 UUID */
+        UUID_MODE_OFFLINE_NAME_LOOKUP,
         /** 输入既不是 UUID, 也不是合法玩家名 */
         INVALID_IDENTIFIER
     }

@@ -204,10 +204,10 @@ class CommandBoundariesTest {
     }
 
     /**
-     * UUID 模式下不能使用离线玩家名作为删除目标
+     * UUID 模式下离线正版玩家名应进入 Mojang 档案查询流程
      */
     @Test
-    void uuidModeRemoveRejectsOfflinePlayerName() {
+    void uuidModeRemoveLooksUpOfflinePlayerName() {
         CommandBoundaries.RemoveTargetDecision decision = CommandBoundaries.removeTargetDecision(
                 PluginConfig.PlayerIdType.UUID,
                 false,
@@ -215,7 +215,7 @@ class CommandBoundariesTest {
                 false
         );
 
-        assertEquals(CommandBoundaries.RemoveTargetDecision.UUID_MODE_OFFLINE_NAME_REQUIRES_UUID, decision);
+        assertEquals(CommandBoundaries.RemoveTargetDecision.UUID_MODE_OFFLINE_NAME_LOOKUP, decision);
     }
 
     /**

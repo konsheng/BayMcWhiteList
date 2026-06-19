@@ -319,10 +319,15 @@ public final class BayMcWhiteListCommand implements TabExecutor {
         // 移除操作会访问 MySQL, 完成后再回到发送者对应的调度器发送消息
         runtime.scheduler().runAsync(() -> {
             try {
-                LookupResult result = findRecord(runtime, target);
+                LookupTarget resolvedTarget = resolveMojangRemoveTarget(runtime, sender, target);
+                if (resolvedTarget == null) {
+                    return;
+                }
+
+                LookupResult result = findRecord(runtime, resolvedTarget);
                 if (result.record().isEmpty()) {
                     runtime.scheduler().runForSender(sender, () ->
-                            runtime.lang().send(sender, "admin.remove-not-found", Map.of("player", target.input())));
+                            runtime.lang().send(sender, "admin.remove-not-found", Map.of("player", resolvedTarget.input())));
                     return;
                 }
                 WhitelistRecord record = result.record().get();
@@ -351,6 +356,9 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 }
 
                 completeRemoval(runtime, sender, record);
+            } catch (MojangProfileLookupException exception) {
+                plugin.getLogger().warning("Failed to query Mojang profile for whitelist removal: " + exception.getMessage());
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "admin.remove-lookup-failed"));
             } catch (SQLException exception) {
                 plugin.getLogger().severe("Failed to remove whitelist record.");
                 exception.printStackTrace();
@@ -609,7 +617,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     /**
-     * UUID 模式下移除白名单必须使用标准 UUID, 避免离线名称误删同名或改名后的记录
+     * UUID 模式下离线正版玩家名会先解析 Mojang UUID, 再按标准 UUID 移除白名单
      */
     private LookupTarget resolveRemoveTarget(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String input) {
         PluginConfig.PlayerIdType idType = runtime.config().player().idType();
@@ -630,11 +638,32 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 runtime.lang().send(sender, "common.invalid-player-identifier");
                 yield null;
             }
-            case UUID_MODE_OFFLINE_NAME_REQUIRES_UUID -> {
-                runtime.lang().send(sender, "admin.remove-requires-uuid-in-uuid-mode");
-                yield null;
+            case UUID_MODE_OFFLINE_NAME_LOOKUP -> {
+                runtime.lang().send(sender, "admin.remove-lookup-name-start", Map.of("player", input));
+                yield new LookupTarget(input, null, false, true);
             }
         };
+    }
+
+    private @Nullable LookupTarget resolveMojangRemoveTarget(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender,
+            LookupTarget target
+    ) throws MojangProfileLookupException {
+        if (!target.resolveMojangName()) {
+            return target;
+        }
+
+        Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByName(target.input());
+        if (profile.isEmpty()) {
+            runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
+                    sender,
+                    "admin.remove-name-not-found",
+                    Map.of("player", target.input())
+            ));
+            return null;
+        }
+        return new LookupTarget(target.input(), profile.get().uuid().toString(), false);
     }
 
     private void completeRemoval(
@@ -822,7 +851,10 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     /**
      * 用户输入的查询文本, 以及可用时解析出的标准键
      */
-    private record LookupTarget(String input, String playerKey, boolean allowNameFallback) {
+    private record LookupTarget(String input, String playerKey, boolean allowNameFallback, boolean resolveMojangName) {
+        private LookupTarget(String input, String playerKey, boolean allowNameFallback) {
+            this(input, playerKey, allowNameFallback, false);
+        }
     }
 
     /**

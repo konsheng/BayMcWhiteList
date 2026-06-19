@@ -134,7 +134,8 @@ remove:
   查询指定玩家当前白名单状态和记录信息
 - **`/baymcwhitelist remove <玩家名|UUID>`**<br>
   权限:`baymcwhitelist.remove`<br>
-  移除指定玩家的白名单记录, 写入管理员操作日志, 并可按服务器模式配置踢出本服在线玩家
+  移除指定玩家的白名单记录, UUID 模式下离线正版玩家名会先查询 Mojang 档案<br>
+  写入管理员操作日志, 并可按服务器模式配置踢出本服在线玩家
 - **`/baymcwhitelist reload`**<br>
   权限:`baymcwhitelist.reload`<br>
   重载配置, 语言文件和数据库连接
