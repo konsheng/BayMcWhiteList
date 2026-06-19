@@ -4,32 +4,61 @@ import com.baymc.whitelist.config.PluginConfig;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
- * 持有 HikariCP 数据源, 并负责初始化 MySQL 表结构
+ * 持有 HikariCP 数据源, 并按当前存储后端初始化数据库表结构
  */
 public final class DatabaseManager implements AutoCloseable {
-    private static final SqlTemplates SCHEMA_SQL = SqlTemplates.load("sql/schema.sql");
-
-    private final PluginConfig.MysqlSettings settings;
+    private final PluginConfig.StorageSettings settings;
+    private final Path dataDirectory;
+    private final StorageDialect dialect;
+    private final SqlTemplates schemaSql;
+    private final SqlTemplates repositorySql;
     private HikariDataSource dataSource;
     private boolean ready;
     private boolean closeRequested;
     private int activeLeases;
 
     /**
-     * 保存已校验的 MySQL 配置, 供后续启动连接池使用
+     * 使用 MySQL 配置创建数据库管理器, 兼容只关心 MySQL 的单元测试
      */
     public DatabaseManager(PluginConfig.MysqlSettings settings) {
-        this.settings = settings;
+        this(new PluginConfig.StorageSettings(
+                PluginConfig.StorageType.MYSQL,
+                settings,
+                new PluginConfig.SqliteSettings("whitelist.db")
+        ));
     }
 
     /**
-     * 重新创建连接池, 并确保所需数据表存在
+     * 使用当前工作目录作为本地数据库目录创建数据库管理器
+     */
+    public DatabaseManager(PluginConfig.StorageSettings settings) {
+        this(settings, Path.of("."));
+    }
+
+    /**
+     * 保存已校验的存储配置, 供后续启动连接池和选择 SQL 方言使用
+     */
+    public DatabaseManager(PluginConfig.StorageSettings settings, Path dataDirectory) {
+        this.settings = settings;
+        this.dataDirectory = Objects.requireNonNull(dataDirectory, "dataDirectory");
+        this.dialect = StorageDialect.from(settings.type());
+        this.schemaSql = SqlTemplates.load(dialect.schemaResource);
+        this.repositorySql = SqlTemplates.load(dialect.repositoryResource);
+    }
+
+    /**
+     * 重新创建连接池, 并确保当前存储后端所需数据表存在
      */
     public synchronized void start() throws SQLException {
         forceClose();
@@ -37,21 +66,14 @@ public final class DatabaseManager implements AutoCloseable {
         activeLeases = 0;
 
         HikariConfig hikari = new HikariConfig();
-        hikari.setPoolName("BayMcWhiteList-Hikari");
+        hikari.setPoolName("BayMcWhiteList-" + dialect.name());
         hikari.setJdbcUrl(jdbcUrl());
-        hikari.setUsername(settings.username());
-        hikari.setPassword(settings.password());
-        hikari.setMaximumPoolSize(settings.maximumPoolSize());
-        hikari.setMinimumIdle(settings.minimumIdle());
-        hikari.setConnectionTimeout(settings.connectionTimeout());
-        hikari.setIdleTimeout(settings.idleTimeout());
-        hikari.setMaxLifetime(settings.maxLifetime());
-        hikari.addDataSourceProperty("cachePrepStmts", "true");
-        hikari.addDataSourceProperty("prepStmtCacheSize", "250");
-        hikari.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-        hikari.addDataSourceProperty("useServerPrepStmts", "true");
-        hikari.addDataSourceProperty("useLocalSessionState", "true");
-        hikari.addDataSourceProperty("rewriteBatchedStatements", "true");
+        if (settings.type() == PluginConfig.StorageType.MYSQL) {
+            applyMysqlSettings(hikari);
+        } else {
+            prepareSqliteFile();
+            applySqliteSettings(hikari);
+        }
 
         try {
             dataSource = new HikariDataSource(hikari);
@@ -89,19 +111,24 @@ public final class DatabaseManager implements AutoCloseable {
     }
 
     /**
-     * 返回带引号的白名单玩家表名
+     * 返回带当前方言引号的白名单玩家表名
      */
     public String playersTable() {
-        // table-prefix 在加载配置时已按 [A-Za-z0-9_] 校验
-        // 因此加引号后可以安全插入 SQL 标识符
-        return quote(settings.tablePrefix() + "whitelist_players");
+        return quote(tablePrefix() + "whitelist_players");
     }
 
     /**
-     * 返回带引号的审计日志表名
+     * 返回带当前方言引号的审计日志表名
      */
     public String logsTable() {
-        return quote(settings.tablePrefix() + "whitelist_logs");
+        return quote(tablePrefix() + "whitelist_logs");
+    }
+
+    /**
+     * 返回当前后端对应的仓库 SQL 模板
+     */
+    SqlTemplates repositorySql() {
+        return repositorySql;
     }
 
     /**
@@ -180,9 +207,11 @@ public final class DatabaseManager implements AutoCloseable {
     private void initializeSchema() throws SQLException {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
+            initializeDialect(connection, statement);
             Map<String, String> placeholders = schemaPlaceholders();
-            statement.executeUpdate(SCHEMA_SQL.render("create_whitelist_players", placeholders));
-            statement.executeUpdate(SCHEMA_SQL.render("create_whitelist_logs", placeholders));
+            for (String templateName : dialect.schemaTemplates) {
+                statement.executeUpdate(schemaSql.render(templateName, placeholders));
+            }
         }
     }
 
@@ -190,16 +219,19 @@ public final class DatabaseManager implements AutoCloseable {
      * 构建建表模板所需的安全占位符
      */
     private Map<String, String> schemaPlaceholders() {
-        return Map.of(
-                "players_table", playersTable(),
-                "logs_table", logsTable(),
-                "player_uuid_length", String.valueOf(StorageLimits.PLAYER_UUID),
-                "player_name_length", String.valueOf(StorageLimits.PLAYER_NAME),
-                "code_length", String.valueOf(StorageLimits.CODE),
-                "server_name_length", String.valueOf(StorageLimits.SERVER_NAME),
-                "action_length", String.valueOf(StorageLimits.ACTION),
-                "ip_length", String.valueOf(StorageLimits.IP),
-                "message_length", String.valueOf(StorageLimits.MESSAGE)
+        return Map.ofEntries(
+                Map.entry("players_table", playersTable()),
+                Map.entry("logs_table", logsTable()),
+                Map.entry("players_name_index", quote("idx_whitelist_players_player_name")),
+                Map.entry("logs_player_uuid_index", quote("idx_whitelist_logs_player_uuid")),
+                Map.entry("logs_created_at_index", quote("idx_whitelist_logs_created_at")),
+                Map.entry("player_uuid_length", String.valueOf(StorageLimits.PLAYER_UUID)),
+                Map.entry("player_name_length", String.valueOf(StorageLimits.PLAYER_NAME)),
+                Map.entry("code_length", String.valueOf(StorageLimits.CODE)),
+                Map.entry("server_name_length", String.valueOf(StorageLimits.SERVER_NAME)),
+                Map.entry("action_length", String.valueOf(StorageLimits.ACTION)),
+                Map.entry("ip_length", String.valueOf(StorageLimits.IP)),
+                Map.entry("message_length", String.valueOf(StorageLimits.MESSAGE))
         );
     }
 
@@ -207,25 +239,166 @@ public final class DatabaseManager implements AutoCloseable {
      * 根据配置值和固定安全默认值构建 JDBC 连接地址
      */
     String jdbcUrl() {
+        return switch (settings.type()) {
+            case MYSQL -> mysqlJdbcUrl();
+            case SQLITE -> "jdbc:sqlite:" + sqliteFile().toString().replace('\\', '/');
+        };
+    }
+
+    /**
+     * 根据 MySQL 配置拼接带固定安全参数的连接地址
+     */
+    private String mysqlJdbcUrl() {
+        PluginConfig.MysqlSettings mysql = settings.mysql();
         return "jdbc:mysql://"
-                + settings.host()
+                + mysql.host()
                 + ":"
-                + settings.port()
+                + mysql.port()
                 + "/"
-                + settings.database()
+                + mysql.database()
                 + "?useSSL="
-                + settings.useSsl()
+                + mysql.useSsl()
                 + "&allowPublicKeyRetrieval="
-                + settings.allowPublicKeyRetrieval()
+                + mysql.allowPublicKeyRetrieval()
                 + "&useUnicode=true"
                 + "&characterEncoding=utf8"
                 + "&serverTimezone=UTC";
     }
 
     /**
-     * 使用 MySQL 反引号包裹已校验的 SQL 标识符
+     * 应用 MySQL 连接池和驱动优化配置
      */
-    private static String quote(String identifier) {
-        return "`" + identifier + "`";
+    private void applyMysqlSettings(HikariConfig hikari) {
+        PluginConfig.MysqlSettings mysql = settings.mysql();
+        hikari.setUsername(mysql.username());
+        hikari.setPassword(mysql.password());
+        hikari.setMaximumPoolSize(mysql.maximumPoolSize());
+        hikari.setMinimumIdle(mysql.minimumIdle());
+        hikari.setConnectionTimeout(mysql.connectionTimeout());
+        hikari.setIdleTimeout(mysql.idleTimeout());
+        hikari.setMaxLifetime(mysql.maxLifetime());
+        hikari.addDataSourceProperty("cachePrepStmts", "true");
+        hikari.addDataSourceProperty("prepStmtCacheSize", "250");
+        hikari.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+        hikari.addDataSourceProperty("useServerPrepStmts", "true");
+        hikari.addDataSourceProperty("useLocalSessionState", "true");
+        hikari.addDataSourceProperty("rewriteBatchedStatements", "true");
+    }
+
+    /**
+     * 应用 SQLite 单文件数据库连接池配置
+     *
+     * <p>SQLite 同一时间只有一个写事务, 因此池大小固定为 1, 避免多连接写入竞争放大锁等待
+     */
+    private void applySqliteSettings(HikariConfig hikari) {
+        hikari.setDriverClassName("org.sqlite.JDBC");
+        hikari.setMaximumPoolSize(1);
+        hikari.setMinimumIdle(1);
+        hikari.setConnectionTimeout(10000L);
+        hikari.setIdleTimeout(0L);
+        hikari.setMaxLifetime(0L);
+        hikari.setConnectionInitSql("PRAGMA busy_timeout=5000");
+    }
+
+    /**
+     * 确保 SQLite 数据库文件所在目录存在
+     */
+    private void prepareSqliteFile() throws SQLException {
+        try {
+            Files.createDirectories(sqliteFile().getParent());
+        } catch (IOException exception) {
+            throw new SQLException("Unable to create SQLite database directory", exception);
+        }
+    }
+
+    /**
+     * 为 SQLite 初始化写前日志模式, 降低读写互相阻塞的概率
+     */
+    private void initializeDialect(Connection connection, Statement statement) throws SQLException {
+        if (settings.type() != PluginConfig.StorageType.SQLITE) {
+            return;
+        }
+        statement.executeUpdate("PRAGMA busy_timeout=5000");
+        statement.executeUpdate("PRAGMA foreign_keys=ON");
+        statement.executeQuery("PRAGMA journal_mode=WAL").close();
+        connection.setAutoCommit(true);
+    }
+
+    /**
+     * 解析 SQLite 文件在插件数据目录中的实际路径
+     */
+    private Path sqliteFile() {
+        Path base = dataDirectory.toAbsolutePath().normalize();
+        Path file = base.resolve(settings.sqlite().file()).normalize();
+        if (!file.startsWith(base)) {
+            throw new IllegalStateException("SQLite database file must stay inside the plugin data folder");
+        }
+        return file;
+    }
+
+    private String tablePrefix() {
+        return settings.type() == PluginConfig.StorageType.MYSQL ? settings.mysql().tablePrefix() : "";
+    }
+
+    /**
+     * 使用当前 SQL 方言的引用符包裹已校验的 SQL 标识符
+     */
+    private String quote(String identifier) {
+        return dialect.quote + identifier + dialect.quote;
+    }
+
+    /**
+     * 当前支持的数据库 SQL 方言和模板资源
+     */
+    private enum StorageDialect {
+        MYSQL(
+                PluginConfig.StorageType.MYSQL,
+                "sql/schema.sql",
+                "sql/repository.sql",
+                List.of("create_whitelist_players", "create_whitelist_logs"),
+                "`"
+        ),
+        SQLITE(
+                PluginConfig.StorageType.SQLITE,
+                "sql/sqlite/schema.sql",
+                "sql/sqlite/repository.sql",
+                List.of(
+                        "create_whitelist_players",
+                        "create_whitelist_players_name_index",
+                        "create_whitelist_logs",
+                        "create_whitelist_logs_player_uuid_index",
+                        "create_whitelist_logs_created_at_index"
+                ),
+                "\""
+        );
+
+        private final PluginConfig.StorageType storageType;
+        private final String schemaResource;
+        private final String repositoryResource;
+        private final List<String> schemaTemplates;
+        private final String quote;
+
+        StorageDialect(
+                PluginConfig.StorageType storageType,
+                String schemaResource,
+                String repositoryResource,
+                List<String> schemaTemplates,
+                String quote
+        ) {
+            this.storageType = storageType;
+            this.schemaResource = schemaResource;
+            this.repositoryResource = repositoryResource;
+            this.schemaTemplates = schemaTemplates;
+            this.quote = quote;
+        }
+
+        private static StorageDialect from(PluginConfig.StorageType storageType) {
+            for (StorageDialect dialect : values()) {
+                if (dialect.storageType == storageType) {
+                    return dialect;
+                }
+            }
+            throw new IllegalArgumentException("Unsupported storage type: " + storageType);
+        }
     }
 }

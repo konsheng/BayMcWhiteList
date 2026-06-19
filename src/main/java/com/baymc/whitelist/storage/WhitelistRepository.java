@@ -3,22 +3,18 @@ package com.baymc.whitelist.storage;
 import com.baymc.whitelist.identity.PlayerIdentity;
 
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * 通过 MySQL 读写白名单状态和审计日志
+ * 通过当前数据库后端读写白名单状态和审计日志
  */
 public final class WhitelistRepository {
-    private static final SqlTemplates REPOSITORY_SQL = SqlTemplates.load("sql/repository.sql");
-
     private final DatabaseManager database;
     private final String serverName;
     private final Map<String, String> sqlPlaceholders;
@@ -71,10 +67,10 @@ public final class WhitelistRepository {
             statement.setString(1, identity.uuidText());
             statement.setString(2, identity.name());
             statement.setString(3, code);
-            statement.setDate(4, Date.valueOf(issueDate));
-            statement.setTimestamp(5, Timestamp.valueOf(usedAt));
+            statement.setString(4, issueDate.toString());
+            statement.setString(5, dateTime(usedAt));
             statement.setString(6, serverName);
-            statement.setTimestamp(7, Timestamp.valueOf(usedAt));
+            statement.setString(7, dateTime(usedAt));
             statement.executeUpdate();
         }
     }
@@ -86,11 +82,11 @@ public final class WhitelistRepository {
         String sql = sql("insert_manual_player");
 
         try (Connection connection = database.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+            PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, identity.uuidText());
             statement.setString(2, identity.name());
-            statement.setDate(3, Date.valueOf(issueDate));
-            statement.setTimestamp(4, Timestamp.valueOf(usedAt));
+            statement.setString(3, issueDate.toString());
+            statement.setString(4, dateTime(usedAt));
             statement.setString(5, serverName);
             return statement.executeUpdate() > 0;
         }
@@ -115,7 +111,7 @@ public final class WhitelistRepository {
         String sql = sql("update_last_seen");
         try (Connection connection = database.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setTimestamp(1, Timestamp.valueOf(lastSeenAt));
+            statement.setString(1, dateTime(lastSeenAt));
             statement.setString(2, playerUuid);
             statement.executeUpdate();
         }
@@ -136,7 +132,7 @@ public final class WhitelistRepository {
             statement.setString(5, truncate(entry.serverName(), StorageLimits.SERVER_NAME));
             statement.setString(6, truncate(entry.ip(), StorageLimits.IP));
             statement.setString(7, truncate(entry.message(), StorageLimits.MESSAGE));
-            statement.setTimestamp(8, Timestamp.valueOf(entry.createdAt()));
+            statement.setString(8, dateTime(entry.createdAt()));
             statement.executeUpdate();
         }
     }
@@ -145,17 +141,14 @@ public final class WhitelistRepository {
      * 从查询结果构建不可变白名单记录
      */
     private static WhitelistRecord readRecord(ResultSet resultSet) throws SQLException {
-        Timestamp usedAt = resultSet.getTimestamp("used_at");
-        Timestamp lastSeenAt = resultSet.getTimestamp("last_seen_at");
-        Date issueDate = resultSet.getDate("issue_date");
         return new WhitelistRecord(
                 resultSet.getString("player_uuid"),
                 resultSet.getString("player_name"),
                 resultSet.getString("code"),
-                issueDate == null ? null : issueDate.toLocalDate(),
-                usedAt == null ? null : usedAt.toLocalDateTime(),
+                readDate(resultSet, "issue_date"),
+                readDateTime(resultSet, "used_at"),
                 resultSet.getString("source_server"),
-                lastSeenAt == null ? null : lastSeenAt.toLocalDateTime()
+                readDateTime(resultSet, "last_seen_at")
         );
     }
 
@@ -163,7 +156,36 @@ public final class WhitelistRepository {
      * 渲染仓库 SQL 模板
      */
     private String sql(String name) {
-        return REPOSITORY_SQL.render(name, sqlPlaceholders);
+        return database.repositorySql().render(name, sqlPlaceholders);
+    }
+
+    /**
+     * 以文本形式读取日期, 避免不同 JDBC 驱动对 DATE 的内部存储格式差异
+     */
+    private static LocalDate readDate(ResultSet resultSet, String column) throws SQLException {
+        String value = resultSet.getString(column);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return LocalDate.parse(value.trim().substring(0, 10));
+    }
+
+    /**
+     * 以文本形式读取时间戳, 同时兼容 MySQL 空格分隔和 Java ISO T 分隔格式
+     */
+    private static LocalDateTime readDateTime(ResultSet resultSet, String column) throws SQLException {
+        String value = resultSet.getString(column);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return LocalDateTime.parse(value.trim().replace(' ', 'T'));
+    }
+
+    /**
+     * 以 MySQL DATETIME 和 SQLite TEXT 都能直接保存的格式写入时间戳
+     */
+    private static String dateTime(LocalDateTime value) {
+        return value.toString().replace('T', ' ');
     }
 
     /**

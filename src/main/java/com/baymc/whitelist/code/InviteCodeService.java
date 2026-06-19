@@ -68,7 +68,7 @@ public final class InviteCodeService {
         }
 
         // 从今天回溯 validDays - 1 天即可让邀请码自然过期
-        // 不需要把未使用的邀请码提前存入 MySQL
+        // 不需要把未使用的邀请码提前存入数据库
         LocalDate today = LocalDate.now(clock);
         for (int daysAgo = 0; daysAgo < settings.validDays(); daysAgo++) {
             LocalDate issueDate = today.minusDays(daysAgo);

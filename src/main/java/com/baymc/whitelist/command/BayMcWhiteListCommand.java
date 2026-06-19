@@ -189,7 +189,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             } catch (SQLException exception) {
                 plugin.getLogger().severe("Failed to manually add whitelist record.");
                 exception.printStackTrace();
-                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "mysql.operation-failed"));
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "database.operation-failed"));
             } finally {
                 runtime.close();
             }
@@ -265,7 +265,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     /**
-     * 异步查询 MySQL, 并反馈某个玩家的白名单状态
+     * 异步查询数据库, 并反馈某个玩家的白名单状态
      */
     private boolean handleStatus(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
         if (!hasPermission(runtime, sender, "baymcwhitelist.status")) {
@@ -280,7 +280,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             return false;
         }
 
-        // SQL 在异步线程执行; 命令反馈通过感知发送者的调度器切回
+        // 数据库查询在异步线程执行; 命令反馈通过感知发送者的调度器切回
         // 以保持 Folia 兼容
         runtime.scheduler().runAsync(() -> {
             try {
@@ -303,7 +303,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             } catch (SQLException exception) {
                 plugin.getLogger().severe("Failed to query whitelist status.");
                 exception.printStackTrace();
-                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "mysql.operation-failed"));
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "database.operation-failed"));
             } finally {
                 runtime.close();
             }
@@ -327,7 +327,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             return false;
         }
 
-        // 移除操作会访问 MySQL, 完成后再回到发送者对应的调度器发送消息
+        // 移除操作会访问数据库, 完成后再回到发送者对应的调度器发送消息
         runtime.scheduler().runAsync(() -> {
             try {
                 LookupTarget resolvedTarget = resolveMojangRemoveTarget(runtime, sender, target);
@@ -373,7 +373,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             } catch (SQLException exception) {
                 plugin.getLogger().severe("Failed to remove whitelist record.");
                 exception.printStackTrace();
-                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "mysql.operation-failed"));
+                runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "database.operation-failed"));
             } finally {
                 runtime.close();
             }
@@ -860,7 +860,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
         if (runtime.databaseReady()) {
             return true;
         }
-        runtime.lang().send(sender, "mysql.not-ready");
+        runtime.lang().send(sender, "database.not-ready");
         return false;
     }
 

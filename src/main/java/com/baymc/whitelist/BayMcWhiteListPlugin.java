@@ -131,7 +131,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
     }
 
     /**
-     * 判断命令和受保护服务器登录检查是否可以安全使用 MySQL
+     * 判断命令和受保护服务器登录检查是否可以安全使用当前数据库后端
      */
     public boolean isDatabaseReady() {
         return databaseManager != null && databaseManager.isReady();
@@ -169,7 +169,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         LangManager loadedLang = new LangManager(this);
         loadedLang.reload(loadedConfig.language().file());
 
-        DatabaseManager loadedDatabase = new DatabaseManager(loadedConfig.mysql());
+        DatabaseManager loadedDatabase = new DatabaseManager(loadedConfig.storage(), getDataFolder().toPath());
         boolean databaseReady = connect(loadedDatabase);
         DatabaseManager oldDatabase = databaseManager;
 
@@ -179,7 +179,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
             return false;
         }
 
-        // 即使 MySQL 不可用也保持插件启用: 登录服可以显示配置好的"未就绪"提示
+        // 即使数据库不可用也保持插件启用: 登录服可以显示配置好的"未就绪"提示
         // 受保护服务器则会按失败关闭策略拒绝进入, 避免误放未知玩家
         pluginConfig = loadedConfig;
         langManager = loadedLang;
@@ -217,14 +217,14 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
     }
 
     /**
-     * 尝试启动 MySQL, 连接失败时不直接禁用插件
+     * 尝试启动当前数据库后端, 连接失败时不直接禁用插件
      */
     private boolean connect(DatabaseManager database) {
         try {
             database.start();
             return true;
         } catch (SQLException | RuntimeException exception) {
-            getLogger().severe("Failed to connect to MySQL or initialize tables.");
+            getLogger().severe("Failed to connect to database or initialize tables.");
             exception.printStackTrace();
             return false;
         }

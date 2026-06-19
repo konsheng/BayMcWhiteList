@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 public record PluginConfig(
         CodeSettings code,
         PlayerSettings player,
-        MysqlSettings mysql,
+        StorageSettings storage,
         ServerSettings server,
         LanguageSettings language,
         RemoveSettings remove,
@@ -31,6 +31,7 @@ public record PluginConfig(
     private static final Pattern DATABASE_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,64}");
     private static final Pattern SERVER_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
     private static final Pattern PERMISSION_NODE_PATTERN = Pattern.compile("[a-z0-9_.-]{1,128}");
+    private static final Pattern SQLITE_FILE_PATTERN = Pattern.compile("[A-Za-z0-9_.-]{1,64}\\.(?:db|sqlite|sqlite3)");
     private static final Pattern MYSQL_HOST_PATTERN = Pattern.compile(
             "(?=.{1,255}$)(?:(?:[A-Za-z0-9](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9])?)"
                     + "(?:\\.(?:[A-Za-z0-9](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9])?))*"
@@ -77,31 +78,11 @@ public record PluginConfig(
                 string(config, "player.uuid-source", "mojang")
         ));
 
-        // 表前缀后续会插入 SQL 标识符中, 因此使用前必须限制为安全字符
-        String tablePrefix = requirePattern(
-                string(config, "storage.mysql.table-prefix", "baymcwhitelist_"),
-                TABLE_PREFIX_PATTERN,
-                "storage.mysql.table-prefix"
-        );
-        int maximumPoolSize = intRange(config, "storage.mysql.pool.maximum-pool-size", 10, 1, 64);
-        int minimumIdle = intRange(config, "storage.mysql.pool.minimum-idle", 2, 0, 64);
-        if (minimumIdle > maximumPoolSize) {
-            throw new IllegalArgumentException("storage.mysql.pool.minimum-idle cannot be greater than maximum-pool-size");
-        }
-        MysqlSettings mysql = new MysqlSettings(
-                requirePattern(string(config, "storage.mysql.host", "127.0.0.1"), MYSQL_HOST_PATTERN, "storage.mysql.host"),
-                intRange(config, "storage.mysql.port", 3306, 1, 65535),
-                requirePattern(string(config, "storage.mysql.database", "baymc"), DATABASE_NAME_PATTERN, "storage.mysql.database"),
-                string(config, "storage.mysql.username", "root"),
-                string(config, "storage.mysql.password", "password"),
-                tablePrefix,
-                config.getBoolean("storage.mysql.use-ssl", false),
-                config.getBoolean("storage.mysql.allow-public-key-retrieval", false),
-                maximumPoolSize,
-                minimumIdle,
-                longRange(config, "storage.mysql.pool.connection-timeout", 10000L, 250L, 120000L),
-                longRange(config, "storage.mysql.pool.idle-timeout", 600000L, 10000L, 3600000L),
-                longRange(config, "storage.mysql.pool.max-lifetime", 1800000L, 30000L, 7200000L)
+        StorageType storageType = StorageType.from(string(config, "storage.type", "mysql"));
+        StorageSettings storage = new StorageSettings(
+                storageType,
+                storageType == StorageType.MYSQL ? mysqlSettings(config) : defaultMysqlSettings(),
+                storageType == StorageType.SQLITE ? sqliteSettings(config) : defaultSqliteSettings()
         );
 
         ServerSettings server = new ServerSettings(
@@ -140,7 +121,21 @@ public record PluginConfig(
         );
         SecuritySettings security = new SecuritySettings(verifyRateLimit);
 
-        return new PluginConfig(code, player, mysql, server, language, remove, security);
+        return new PluginConfig(code, player, storage, server, language, remove, security);
+    }
+
+    /**
+     * 保留 MySQL 配置快捷访问器, 便于现有调用方不关心 storage 包装层
+     */
+    public MysqlSettings mysql() {
+        return storage.mysql();
+    }
+
+    /**
+     * 保留 SQLite 配置快捷访问器, 供数据库管理器和测试直接读取
+     */
+    public SqliteSettings sqlite() {
+        return storage.sqlite();
     }
 
     /**
@@ -184,6 +179,71 @@ public record PluginConfig(
     }
 
     /**
+     * 读取并校验 MySQL 专属配置; 只有 storage.type=mysql 时会调用
+     */
+    private static MysqlSettings mysqlSettings(FileConfiguration config) {
+        // 表前缀后续会插入 SQL 标识符中, 因此使用前必须限制为安全字符
+        String tablePrefix = requirePattern(
+                string(config, "storage.mysql.table-prefix", "baymcwhitelist_"),
+                TABLE_PREFIX_PATTERN,
+                "storage.mysql.table-prefix"
+        );
+        int maximumPoolSize = intRange(config, "storage.mysql.pool.maximum-pool-size", 10, 1, 64);
+        int minimumIdle = intRange(config, "storage.mysql.pool.minimum-idle", 2, 0, 64);
+        if (minimumIdle > maximumPoolSize) {
+            throw new IllegalArgumentException("storage.mysql.pool.minimum-idle cannot be greater than maximum-pool-size");
+        }
+        return new MysqlSettings(
+                requirePattern(string(config, "storage.mysql.host", "127.0.0.1"), MYSQL_HOST_PATTERN, "storage.mysql.host"),
+                intRange(config, "storage.mysql.port", 3306, 1, 65535),
+                requirePattern(string(config, "storage.mysql.database", "baymc"), DATABASE_NAME_PATTERN, "storage.mysql.database"),
+                string(config, "storage.mysql.username", "root"),
+                string(config, "storage.mysql.password", "password"),
+                tablePrefix,
+                config.getBoolean("storage.mysql.use-ssl", false),
+                config.getBoolean("storage.mysql.allow-public-key-retrieval", false),
+                maximumPoolSize,
+                minimumIdle,
+                longRange(config, "storage.mysql.pool.connection-timeout", 10000L, 250L, 120000L),
+                longRange(config, "storage.mysql.pool.idle-timeout", 600000L, 10000L, 3600000L),
+                longRange(config, "storage.mysql.pool.max-lifetime", 1800000L, 30000L, 7200000L)
+        );
+    }
+
+    /**
+     * 读取并校验 SQLite 专属配置; 文件名只允许落在插件数据目录下
+     */
+    private static SqliteSettings sqliteSettings(FileConfiguration config) {
+        return new SqliteSettings(requirePattern(
+                string(config, "storage.sqlite.file", "whitelist.db"),
+                SQLITE_FILE_PATTERN,
+                "storage.sqlite.file"
+        ));
+    }
+
+    private static MysqlSettings defaultMysqlSettings() {
+        return new MysqlSettings(
+                "127.0.0.1",
+                3306,
+                "baymc",
+                "root",
+                "password",
+                "baymcwhitelist_",
+                false,
+                false,
+                10,
+                2,
+                10000L,
+                600000L,
+                1800000L
+        );
+    }
+
+    private static SqliteSettings defaultSqliteSettings() {
+        return new SqliteSettings("whitelist.db");
+    }
+
+    /**
      * 读取服务器模式列表配置, 用于控制只在指定类型服务器上执行某些动作
      *
      * <p>未显式配置时使用传入默认值; 显式配置为空列表时表示所有模式都不启用该动作
@@ -221,6 +281,12 @@ public record PluginConfig(
      * 用于生成标准白名单键的玩家身份策略
      */
     public record PlayerSettings(UuidSource uuidSource) {
+    }
+
+    /**
+     * 当前启用的存储后端及各后端配置
+     */
+    public record StorageSettings(StorageType type, MysqlSettings mysql, SqliteSettings sqlite) {
     }
 
     /**
@@ -295,6 +361,33 @@ public record PluginConfig(
             String notifyPermission,
             int notifyIntervalSeconds
     ) {
+    }
+
+    /**
+     * SQLite 本地数据库文件配置
+     *
+     * <p>文件名会在插件数据目录下解析, 不允许路径分隔符或上级目录跳转
+     */
+    public record SqliteSettings(String file) {
+    }
+
+    /**
+     * 白名单状态支持的存储后端
+     */
+    public enum StorageType {
+        MYSQL,
+        SQLITE;
+
+        /**
+         * 解析配置中的 storage.type 值
+         */
+        public static StorageType from(String raw) {
+            return switch (raw.toLowerCase(Locale.ROOT)) {
+                case "mysql" -> MYSQL;
+                case "sqlite" -> SQLITE;
+                default -> throw new IllegalArgumentException("storage.type must be mysql or sqlite");
+            };
+        }
     }
 
     /**

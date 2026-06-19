@@ -24,6 +24,7 @@ dependencies {
 
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("com.mysql:mysql-connector-j:9.7.0")
+    implementation("org.xerial:sqlite-jdbc:3.53.2.0")
     implementation("org.bstats:bstats-bukkit:3.2.1")
     implementation("com.google.code.gson:gson:2.13.2")
 

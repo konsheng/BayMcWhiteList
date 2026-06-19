@@ -109,7 +109,7 @@ admin:
     - " <dark_gray>▪</dark_gray> <gray>UUID 来源: </gray><gold><uuid_source></gold>"
     - " <dark_gray>▪</dark_gray> <gray>数据库状态: </gray><white><database_status></white>"
 
-mysql:
+database:
   not-ready: "<prefix><red>🚨 数据库尚未就绪! 请稍后再试, 或联系技术管理员检查连接</red>"
   operation-failed: "<prefix><red>🚨 数据库操作发生异常! 请稍后再试, 或联系技术管理员</red>"
 

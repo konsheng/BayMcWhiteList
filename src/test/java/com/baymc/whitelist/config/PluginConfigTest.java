@@ -33,6 +33,55 @@ class PluginConfigTest {
     }
 
     @Test
+    void defaultStorageTypeIsMysql() {
+        PluginConfig config = PluginConfig.load(new YamlConfiguration());
+
+        assertEquals(PluginConfig.StorageType.MYSQL, config.storage().type());
+    }
+
+    @Test
+    void sqliteStorageCanBeSelected() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("storage.type", "sqlite");
+        config.set("storage.sqlite.file", "local-whitelist.sqlite3");
+
+        PluginConfig loaded = PluginConfig.load(config);
+
+        assertEquals(PluginConfig.StorageType.SQLITE, loaded.storage().type());
+        assertEquals("local-whitelist.sqlite3", loaded.sqlite().file());
+    }
+
+    @Test
+    void rejectsUnsupportedStorageType() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("storage.type", "postgres");
+
+        assertThrows(IllegalArgumentException.class, () -> PluginConfig.load(config));
+    }
+
+    @Test
+    void rejectsUnsafeSqliteFileWhenSqliteIsActive() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("storage.type", "sqlite");
+        config.set("storage.sqlite.file", "../whitelist.db");
+
+        assertThrows(IllegalArgumentException.class, () -> PluginConfig.load(config));
+    }
+
+    @Test
+    void inactiveStorageBackendDoesNotRejectItsOwnSettings() {
+        YamlConfiguration sqliteConfig = new YamlConfiguration();
+        sqliteConfig.set("storage.type", "sqlite");
+        sqliteConfig.set("storage.mysql.host", "127.0.0.1/path");
+        assertEquals(PluginConfig.StorageType.SQLITE, PluginConfig.load(sqliteConfig).storage().type());
+
+        YamlConfiguration mysqlConfig = new YamlConfiguration();
+        mysqlConfig.set("storage.type", "mysql");
+        mysqlConfig.set("storage.sqlite.file", "../whitelist.db");
+        assertEquals(PluginConfig.StorageType.MYSQL, PluginConfig.load(mysqlConfig).storage().type());
+    }
+
+    @Test
     void defaultUuidSourceIsMojang() {
         PluginConfig config = PluginConfig.load(new YamlConfiguration());
 

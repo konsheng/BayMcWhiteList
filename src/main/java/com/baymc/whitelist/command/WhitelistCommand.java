@@ -73,7 +73,7 @@ public final class WhitelistCommand implements TabExecutor {
                     runtime.config().player().uuidSource()
             );
             if (!runtime.databaseReady()) {
-                runtime.lang().send(player, "mysql.not-ready");
+                runtime.lang().send(player, "database.not-ready");
                 return true;
             }
 
@@ -136,7 +136,7 @@ public final class WhitelistCommand implements TabExecutor {
         } catch (SQLException exception) {
             plugin.getLogger().severe("Failed to query whitelist self status for " + identity.name() + ".");
             exception.printStackTrace();
-            runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "mysql.operation-failed"));
+            runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "database.operation-failed"));
         }
     }
 
@@ -229,7 +229,7 @@ public final class WhitelistCommand implements TabExecutor {
         } catch (SQLException exception) {
             plugin.getLogger().severe("Failed to verify whitelist code for " + identity.name() + ".");
             exception.printStackTrace();
-            runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "mysql.operation-failed"));
+            runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "database.operation-failed"));
         }
     }
 

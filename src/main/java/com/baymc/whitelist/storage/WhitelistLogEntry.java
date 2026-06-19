@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
  *
  * @param playerUuid 参与该动作的玩家 UUID
  * @param playerName 展示给管理员的玩家名
- * @param action 存入 MySQL 的稳定动作代码
+ * @param action 存入审计表的稳定动作代码
  * @param code 相关的提交或接受的邀请码
  * @param serverName 产生日志的配置服务器名
  * @param ip 可用时记录的远程地址

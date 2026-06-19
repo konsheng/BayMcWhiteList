@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * 在玩家加入受保护服务器前强制检查 MySQL 白名单状态
+ * 在玩家加入受保护服务器前强制检查数据库白名单状态
  */
 public final class WhitelistLoginListener implements Listener {
     private final BayMcWhiteListPlugin plugin;

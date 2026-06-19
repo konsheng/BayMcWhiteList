@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class LanguageKeyCoverageTest {
     private static final Pattern LANGUAGE_KEY = Pattern.compile(
-            "\"((?:common|usage|code|admin|mysql|kick|security|state|join)\\.[a-z0-9_.-]+"
+            "\"((?:common|usage|code|admin|database|kick|security|state|join)\\.[a-z0-9_.-]+"
                     + "|player\\.status-[a-z0-9_.-]+)\""
     );
 
