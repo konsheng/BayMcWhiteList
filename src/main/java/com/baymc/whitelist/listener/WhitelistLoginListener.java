@@ -23,20 +23,10 @@ import java.util.logging.Level;
 public final class WhitelistLoginListener implements Listener {
     private final BayMcWhiteListPlugin plugin;
 
-    /**
-     * 保存预登录检查过程中使用的插件门面对象
-     *
-     * @param plugin 当前插件实例
-     */
     public WhitelistLoginListener(BayMcWhiteListPlugin plugin) {
         this.plugin = plugin;
     }
 
-    /**
-     * 在异步预登录阶段拒绝受保护服务器上的未过白玩家
-     *
-     * @param event Paper/Folia 预登录事件
-     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPreLogin(AsyncPlayerPreLoginEvent event) {
         try (BayMcWhiteListPlugin.RuntimeState runtime = plugin.runtimeState()) {
@@ -84,9 +74,6 @@ public final class WhitelistLoginListener implements Listener {
         }
     }
 
-    /**
-     * 构建配置中的踢出消息, 并拒绝本次登录
-     */
     private void disallow(BayMcWhiteListPlugin.RuntimeState runtime, AsyncPlayerPreLoginEvent event, String languageKey) {
         Component message = runtime.lang().joined(languageKey, Map.of(
                 "player", event.getName(),
@@ -95,16 +82,10 @@ public final class WhitelistLoginListener implements Listener {
         event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, message);
     }
 
-    /**
-     * 审计日志和最后出现时间都使用配置中的时区
-     */
     private static LocalDateTime now(BayMcWhiteListPlugin.RuntimeState runtime) {
         return LocalDateTime.now(runtime.config().code().zoneId());
     }
 
-    /**
-     * 将 InetAddress 转为审计日志可写入的可空文本
-     */
     private static String addressOf(InetAddress address) {
         return address == null ? null : address.getHostAddress();
     }

@@ -43,15 +43,9 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
     private final MojangProfileService mojangProfileService = new MojangProfileService();
     private final List<DatabaseManager> retiredDatabases = new ArrayList<>();
 
-    /**
-     * Paper/Folia 通过无参构造器创建插件实例
-     */
     public BayMcWhiteListPlugin() {
     }
 
-    /**
-     * 初始化配置, 语言文件, 数据库访问, 命令和监听器
-     */
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -70,9 +64,6 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         startMetrics();
     }
 
-    /**
-     * 插件关闭时释放 HikariCP 连接池
-     */
     @Override
     public synchronized void onDisable() {
         if (databaseManager != null) {
@@ -85,11 +76,6 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         retiredDatabases.clear();
     }
 
-    /**
-     * 为管理员 reload 命令重载所有由配置驱动的运行期状态
-     *
-     * @return 只有新的数据库管理器连接成功时才返回 true
-     */
     public synchronized boolean reloadBayMcWhiteList() {
         try {
             reloadConfig();
@@ -100,67 +86,30 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         }
     }
 
-    /**
-     * 返回当前不可变配置快照
-     *
-     * @return 当前运行期配置快照
-     */
     public PluginConfig pluginConfig() {
         return pluginConfig;
     }
 
-    /**
-     * 返回用于所有玩家可见文本的语言管理器
-     *
-     * @return 当前运行期语言管理器
-     */
     public LangManager lang() {
         return langManager;
     }
 
-    /**
-     * 返回兼容 Folia 的调度器适配器
-     *
-     * @return 当前运行期调度器适配器
-     */
     public PlatformScheduler scheduler() {
         return platformScheduler;
     }
 
-    /**
-     * 返回绑定当前数据库管理器的仓库对象
-     *
-     * @return 当前运行期白名单仓库
-     */
     public WhitelistRepository repository() {
         return whitelistRepository;
     }
 
-    /**
-     * 返回绑定当前邀请码配置的邀请码服务
-     *
-     * @return 当前运行期邀请码服务
-     */
     public InviteCodeService inviteCodeService() {
         return inviteCodeService;
     }
 
-    /**
-     * 判断命令和受保护服务器登录检查是否可以安全使用当前数据库后端
-     *
-     * @return 当前数据库管理器是否已经成功启动
-     */
     public boolean isDatabaseReady() {
         return databaseManager != null && databaseManager.isReady();
     }
 
-    /**
-     * 捕获一次命令或监听器处理过程需要使用的运行期服务快照
-     *
-     * <p>异步任务会继续持有这份快照, 避免 reload 期间同一次操作混用新旧配置, 语言或数据库仓库
-     *
-     * @return 一次操作应持有并最终关闭的运行期快照
-     */
     public synchronized RuntimeState runtimeState() {
         DatabaseManager currentDatabase = databaseManager;
         DatabaseManager.Lease databaseLease = currentDatabase == null ? null : currentDatabase.lease();
@@ -178,9 +127,6 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         );
     }
 
-    /**
-     * 根据当前 Bukkit 配置重建所有运行期服务
-     */
     private synchronized boolean reloadRuntime() {
         PluginConfig loadedConfig = PluginConfig.load(getConfig());
         ensureBundledLanguage(loadedConfig.language().file());
@@ -220,13 +166,6 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         return databaseReady;
     }
 
-    /**
-     * 判断新数据库不可用时是否保留旧运行期
-     *
-     * @param loadedDatabaseReady 新运行期数据库是否可用
-     * @param currentDatabaseReady 当前旧数据库是否仍可用
-     * @return 新数据库不可用且旧数据库可用时返回 true
-     */
     static boolean shouldPreserveCurrentRuntime(boolean loadedDatabaseReady, boolean currentDatabaseReady) {
         return !loadedDatabaseReady && currentDatabaseReady;
     }
@@ -242,9 +181,6 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         retiredDatabases.removeIf(DatabaseManager::isClosed);
     }
 
-    /**
-     * 尝试启动当前数据库后端, 连接失败时不直接禁用插件
-     */
     private boolean connect(DatabaseManager database) {
         try {
             database.start();
@@ -255,9 +191,6 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         }
     }
 
-    /**
-     * 在 plugin.yml 注册命令名之后绑定命令执行器
-     */
     private void registerCommands() {
         BayMcWhiteListCommand adminCommand = new BayMcWhiteListCommand(this);
         WhitelistCommand whitelistCommand = new WhitelistCommand(this);
@@ -271,16 +204,10 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
         whitelist.setTabCompleter(whitelistCommand);
     }
 
-    /**
-     * 启动 bStats 匿名统计上报
-     */
     private void startMetrics() {
         new Metrics(this, BSTATS_PLUGIN_ID);
     }
 
-    /**
-     * 首次运行时复制内置语言文件, 同时保留用户已经编辑过的文件
-     */
     private void ensureBundledLanguage(String fileName) {
         String resourcePath = "lang/" + fileName;
         if (getDataFolder().toPath().resolve(resourcePath).toFile().exists()) {
@@ -299,16 +226,6 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
     /**
      * 一次操作使用的运行期服务快照
      *
-     * @param config 已完成校验的配置快照
-     * @param lang 与该配置绑定的语言管理器
-     * @param scheduler 用于切换异步任务和玩家/全局调度器的适配器
-     * @param repository 与当前数据库管理器绑定的仓库
-     * @param inviteCodeService 与当前邀请码配置绑定的服务
-     * @param mojangProfileService 用于管理员手动添加时校验正版玩家档案
-     * @param verifyRateLimiter 与当前安全配置绑定的验证码失败限流器
-     * @param databaseLease 保持当前数据库管理器存活的快照引用
-     * @param closeCallback 快照释放后执行的运行期清理逻辑
-     * @param databaseReady 捕获快照时数据库是否可用
      */
     public record RuntimeState(
             PluginConfig config,
@@ -322,9 +239,7 @@ public final class BayMcWhiteListPlugin extends JavaPlugin {
             Runnable closeCallback,
             boolean databaseReady
     ) implements AutoCloseable {
-        /**
-         * {@inheritDoc}
-         */
+
         @Override
         public void close() {
             try {

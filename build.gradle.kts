@@ -48,6 +48,11 @@ tasks.withType<JavaCompile> {
     options.release.set(25)
 }
 
+tasks.withType<Javadoc> {
+    (options as org.gradle.external.javadoc.StandardJavadocDocletOptions)
+        .addBooleanOption("Xdoclint:all,-missing", true)
+}
+
 tasks.withType<Jar> {
     // 保持普通插件包和依赖打包插件包的基础文件名与工作流一致
     archiveBaseName.set("BayMcWhiteList")

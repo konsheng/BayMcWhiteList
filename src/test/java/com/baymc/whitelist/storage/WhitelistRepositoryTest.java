@@ -24,18 +24,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 针对仓库层写入边界的单元测试
  */
 class WhitelistRepositoryTest {
-    /**
-     * 空值和未超长文本不应被截断逻辑改变
-     */
     @Test
     void truncateLeavesNullAndShortValuesUnchanged() {
         assertNull(WhitelistRepository.truncate(null, StorageLimits.MESSAGE));
         assertEquals("short", WhitelistRepository.truncate("short", StorageLimits.MESSAGE));
     }
 
-    /**
-     * 超长审计字段应被截断到数据库字段上限
-     */
     @Test
     void truncateCutsLongAuditFieldsToDatabaseLimits() {
         String longPlayerName = "P".repeat(StorageLimits.PLAYER_NAME + 20);
@@ -53,9 +47,6 @@ class WhitelistRepositoryTest {
         assertEquals(StorageLimits.MESSAGE, WhitelistRepository.truncate(longMessage, StorageLimits.MESSAGE).length());
     }
 
-    /**
-     * UUID 查询应保留普通索引可用的等值查询, 不在列上包 LOWER()
-     */
     @Test
     void findByUuidQueryUsesIndexedColumn() {
         String sql = SqlTemplates.load("sql/mysql/repository.sql").render("find_by_uuid", tablePlaceholders());
@@ -64,9 +55,6 @@ class WhitelistRepositoryTest {
         assertFalse(sql.contains("LOWER("));
     }
 
-    /**
-     * 手动添加白名单没有真实邀请码, 因此建表 SQL 应允许 code 为空
-     */
     @Test
     void schemaAllowsManualWhitelistRecordsWithoutInviteCode() {
         String sql = SqlTemplates.load("sql/mysql/schema.sql").render("create_whitelist_players", schemaPlaceholders());
@@ -96,9 +84,6 @@ class WhitelistRepositoryTest {
         assertFalse(insertSql.contains("player_key"));
     }
 
-    /**
-     * 手动添加 SQL 应显式写入空邀请码和空最后进入时间
-     */
     @Test
     void manualInsertStoresNullCodeAndLastSeen() {
         String sql = SqlTemplates.load("sql/mysql/repository.sql").render("insert_manual_player", tablePlaceholders());
@@ -189,9 +174,6 @@ class WhitelistRepositoryTest {
         }
     }
 
-    /**
-     * 只有仍被运行期快照持有的数据库管理器才需要插件继续追踪
-     */
     @Test
     void retireOnlyRequestsTrackingWhenLeased() {
         DatabaseManager unusedDatabase = new DatabaseManager(mysqlSettings());

@@ -18,9 +18,6 @@ class MojangProfileServiceTest {
     private static final String NOTCH_UUID = "069a79f4-44e9-4726-a5be-fca90e38aaf5";
     private static final String NOTCH_DASHLESS_UUID = "069a79f444e94726a5befca90e38aaf5";
 
-    /**
-     * 玩家名查询成功时应解析 UUID 和 Mojang 返回的规范玩家名
-     */
     @Test
     void lookupByNameParsesProfile() throws Exception {
         AtomicReference<URI> requestedUri = new AtomicReference<>();
@@ -37,9 +34,6 @@ class MojangProfileServiceTest {
         );
     }
 
-    /**
-     * UUID 查询成功时应使用 sessionserver profile 接口并解析玩家名
-     */
     @Test
     void lookupByUuidParsesProfile() throws Exception {
         AtomicReference<URI> requestedUri = new AtomicReference<>();
@@ -55,9 +49,6 @@ class MojangProfileServiceTest {
         );
     }
 
-    /**
-     * Mojang 返回未找到时应转换为空结果, 由命令层展示未找到提示
-     */
     @Test
     void notFoundReturnsEmptyProfile() throws Exception {
         MojangProfileService service = service(new AtomicReference<>(), 404, "");
@@ -67,9 +58,6 @@ class MojangProfileServiceTest {
         assertTrue(profile.isEmpty());
     }
 
-    /**
-     * 非成功且非未找到状态码应作为查询失败处理
-     */
     @Test
     void serverErrorThrowsLookupException() {
         MojangProfileService service = service(new AtomicReference<>(), 503, "service unavailable");
@@ -77,9 +65,6 @@ class MojangProfileServiceTest {
         assertThrows(MojangProfileLookupException.class, () -> service.lookupByName("Notch"));
     }
 
-    /**
-     * UUID 查询返回的档案 ID 与输入不一致时应拒绝结果
-     */
     @Test
     void mismatchedUuidReturnsEmptyProfile() throws Exception {
         MojangProfileService service = service(
@@ -93,9 +78,6 @@ class MojangProfileServiceTest {
         assertTrue(profile.isEmpty());
     }
 
-    /**
-     * Mojang 响应里的玩家名仍然属于外部输入, 写库前必须符合插件支持的玩家名边界
-     */
     @Test
     void invalidProfileNameThrowsLookupException() {
         MojangProfileService service = service(

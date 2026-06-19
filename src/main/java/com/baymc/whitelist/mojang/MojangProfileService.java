@@ -33,9 +33,6 @@ public final class MojangProfileService {
 
     private final ProfileTransport transport;
 
-    /**
-     * 使用 Java 内置 HttpClient 创建线上查询服务
-     */
     public MojangProfileService() {
         this(new JavaNetProfileTransport(HttpClient.newBuilder()
                 .connectTimeout(REQUEST_TIMEOUT)
@@ -47,13 +44,6 @@ public final class MojangProfileService {
         this.transport = Objects.requireNonNull(transport, "transport");
     }
 
-    /**
-     * 按当前正版玩家名查询 UUID 和规范玩家名
-     *
-     * @param playerName 需要查询的正版玩家名
-     * @return 查询到的 Mojang 档案, 玩家不存在时为空
-     * @throws MojangProfileLookupException 当网络请求, 状态码或响应解析失败时抛出
-     */
     public Optional<MojangProfile> lookupByName(String playerName) throws MojangProfileLookupException {
         if (playerName == null || !PLAYER_NAME_PATTERN.matcher(playerName).matches()) {
             throw new MojangProfileLookupException("Mojang profile lookup name is invalid");
@@ -62,13 +52,6 @@ public final class MojangProfileService {
         return requestProfile(URI.create(NAME_LOOKUP_URL + encodedName), Optional.empty());
     }
 
-    /**
-     * 按 UUID 校验 Mojang 档案是否存在, 并返回对应规范玩家名
-     *
-     * @param uuid 需要查询的正版 UUID
-     * @return 查询到且 UUID 匹配的 Mojang 档案, 不存在或不匹配时为空
-     * @throws MojangProfileLookupException 当网络请求, 状态码或响应解析失败时抛出
-     */
     public Optional<MojangProfile> lookupByUuid(UUID uuid) throws MojangProfileLookupException {
         return requestProfile(URI.create(UUID_LOOKUP_URL + withoutDashes(uuid)), Optional.of(uuid));
     }
@@ -157,9 +140,7 @@ public final class MojangProfileService {
     }
 
     private record JavaNetProfileTransport(HttpClient client) implements ProfileTransport {
-        /**
-         * {@inheritDoc}
-         */
+
         @Override
         public ProfileResponse get(URI uri) throws IOException, InterruptedException {
             HttpRequest request = HttpRequest.newBuilder(uri)

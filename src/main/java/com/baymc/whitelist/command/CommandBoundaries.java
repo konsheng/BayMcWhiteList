@@ -12,17 +12,11 @@ import java.util.function.Predicate;
  * <p>这里只放不依赖 Bukkit 运行时的纯判断, 这样权限和参数数量可以被单元测试直接覆盖
  */
 final class CommandBoundaries {
-    /**
-     * /baymcwhitelist 当前支持的全部一级子命令, 顺序同时用于 Tab 补全展示
-     */
     static final List<String> BAYMC_SUBCOMMANDS = List.of("add", "generate", "status", "remove", "reload", "info", "help");
 
     private CommandBoundaries() {
     }
 
-    /**
-     * 判断玩家 /whitelist 命令是否满足执行前置条件
-     */
     static WhitelistDecision whitelistDecision(
             boolean senderIsPlayer,
             boolean hasUsePermission,
@@ -52,16 +46,10 @@ final class CommandBoundaries {
         return WhitelistDecision.VERIFY;
     }
 
-    /**
-     * 校验命令参数数量是否与该子命令声明的数量完全一致
-     */
     static boolean hasExactArgumentCount(String[] args, int expected) {
         return args.length == expected;
     }
 
-    /**
-     * 根据输入前缀和发送者权限返回可见的 /baymcwhitelist 子命令补全列表
-     */
     static List<String> visibleBayMcSubcommands(Predicate<String> hasPermission, String rawPrefix) {
         String prefix = rawPrefix.toLowerCase(Locale.ROOT);
         return BAYMC_SUBCOMMANDS.stream()
@@ -70,9 +58,6 @@ final class CommandBoundaries {
                 .toList();
     }
 
-    /**
-     * 将 /baymcwhitelist 子命令映射到代码中显式检查的权限节点
-     */
     static String permissionFor(String subcommand) {
         return switch (subcommand.toLowerCase(Locale.ROOT)) {
             case "add" -> "baymcwhitelist.add";

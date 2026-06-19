@@ -22,9 +22,6 @@ final class SqlTemplates {
         this.templates = templates;
     }
 
-    /**
-     * 从 classpath 中加载 SQL 模板资源
-     */
     static SqlTemplates load(String resourcePath) {
         try (InputStream inputStream = SqlTemplates.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (inputStream == null) {
@@ -37,9 +34,6 @@ final class SqlTemplates {
         }
     }
 
-    /**
-     * 渲染指定名称的模板, 并替换安全占位符
-     */
     String render(String name, Map<String, String> placeholders) {
         String template = templates.get(name);
         if (template == null) {

@@ -16,9 +16,9 @@ import java.util.Map;
 import java.util.logging.Level;
 
 /**
- * 处理 /baymcwhitelist add <玩家名|UUID>
+ * 处理 /baymcwhitelist add 参数为玩家名或 UUID
  *
- * <p>该命令会按当前 UUID 来源解析目标身份, 异步写入白名单记录,
+ * <p>该命令会按当前 UUID 来源解析目标身份, 异步写入白名单记录
  * 并记录管理员手动添加审计日志
  */
 public final class AddSubcommand implements BayMcSubcommand {
@@ -78,7 +78,7 @@ public final class AddSubcommand implements BayMcSubcommand {
         return context.runAsyncClosing(() -> {
             try {
                 /*
-                 * Mojang 模式下离线名称需要异步查询正版档案;
+                 * Mojang 模式下离线名称需要异步查询正版档案
                  * 其他 UUID 来源在进入异步任务前已经完成本地解析
                  */
                 AddTarget target = localTarget == null
@@ -143,9 +143,6 @@ public final class AddSubcommand implements BayMcSubcommand {
         });
     }
 
-    /**
-     * 写入手动添加审计日志; 日志失败不影响白名单记录本身的添加结果
-     */
     private void logManualAdd(
             CommandContext context,
             PlayerIdentity identity,

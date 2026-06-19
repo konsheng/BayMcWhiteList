@@ -24,45 +24,21 @@ public final class InviteCodeService {
     private final PluginConfig.CodeSettings settings;
     private final Clock clock;
 
-    /**
-     * 使用配置时区下的真实系统时钟创建服务
-     *
-     * @param settings 已校验的邀请码配置
-     */
     public InviteCodeService(PluginConfig.CodeSettings settings) {
         this(settings, Clock.system(settings.zoneId()));
     }
 
-    /**
-     * 使用注入时钟创建服务, 主要用于确定性测试
-     *
-     * @param settings 已校验的邀请码配置
-     * @param clock 生成和校验日期窗口使用的时钟
-     */
     public InviteCodeService(PluginConfig.CodeSettings settings, Clock clock) {
         this.settings = settings;
         this.clock = clock.withZone(settings.zoneId());
     }
 
-    /**
-     * 为传入的标准玩家 UUID 生成当天邀请码
-     *
-     * @param playerUuid 标准 UUID 文本, 会参与 HMAC 载荷计算
-     * @return 包含完整邀请码, 签发日期和过期时间的结果
-     */
     public GeneratedCode generate(String playerUuid) {
         LocalDate issueDate = LocalDate.now(clock);
         String code = settings.prefix() + "-" + suffixFor(playerUuid, issueDate);
         return new GeneratedCode(code, issueDate, expiresAt(issueDate));
     }
 
-    /**
-     * 根据执行命令的玩家 UUID 校验提交的邀请码
-     *
-     * @param rawCode 玩家提交的原始邀请码文本
-     * @param playerUuid 当前玩家的标准 UUID 文本
-     * @return 校验结果, 成功时包含标准化邀请码和匹配到的签发日期
-     */
     public VerificationResult verify(String rawCode, String playerUuid) {
         String trimmed = rawCode == null ? "" : rawCode.trim();
         String expectedPrefix = settings.prefix();
@@ -93,18 +69,12 @@ public final class InviteCodeService {
         return VerificationResult.invalidOrExpired();
     }
 
-    /**
-     * 为一组玩家, 日期和前缀构建签名后缀
-     */
     private String suffixFor(String playerUuid, LocalDate issueDate) {
         String payload = playerUuid + ":" + issueDate + ":" + settings.prefix();
         byte[] digest = hmac(payload);
         return base32(digest).substring(0, settings.suffixLength());
     }
 
-    /**
-     * 将签发日期转换为展示用的过期时间
-     */
     private ZonedDateTime expiresAt(LocalDate issueDate) {
         return issueDate
                 .plusDays(settings.validDays())
@@ -112,9 +82,6 @@ public final class InviteCodeService {
                 .minusSeconds(1);
     }
 
-    /**
-     * 计算带密钥摘要; 失败通常说明 JVM 缺少所需加密算法
-     */
     private byte[] hmac(String payload) {
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
@@ -126,10 +93,6 @@ public final class InviteCodeService {
         }
     }
 
-    /**
-     * 使用不带填充的 RFC4648 Base32 编码字节, 生成字母表避开 0/1
-     * 降低玩家手动输入邀请码时的混淆概率
-     */
     private static String base32(byte[] bytes) {
         StringBuilder output = new StringBuilder((bytes.length * 8 + 4) / 5);
         int buffer = 0;
@@ -150,9 +113,6 @@ public final class InviteCodeService {
         return output.toString();
     }
 
-    /**
-     * 检查提交的后缀是否只使用生成器允许的 Base32 字符
-     */
     private static boolean isBase32Suffix(String suffix) {
         for (int index = 0; index < suffix.length(); index++) {
             char character = suffix.charAt(index);
@@ -165,9 +125,6 @@ public final class InviteCodeService {
         return true;
     }
 
-    /**
-     * 比较签名时避免泄露第一个不同字符的位置
-     */
     private static boolean constantTimeEquals(String left, String right) {
         return MessageDigest.isEqual(
                 left.getBytes(StandardCharsets.US_ASCII),

@@ -17,13 +17,6 @@ import java.util.regex.Pattern;
  * <p>命令和监听器读取这份不可变记录, 而不是直接读取原始 YAML 路径
  * 这样可以把配置校验集中在一个地方
  *
- * @param code 邀请码生成和校验配置
- * @param player 玩家身份来源配置
- * @param storage 当前启用的数据库后端配置
- * @param server 当前服务器角色配置
- * @param language 语言文件配置
- * @param remove 撤销白名单后的本服处理策略
- * @param security 邀请码验证安全策略
  */
 public record PluginConfig(
         CodeSettings code,
@@ -48,13 +41,6 @@ public record PluginConfig(
                     + "|\\[[0-9A-Fa-f:.]+])"
     );
 
-    /**
-     * 加载并校验所有支持的配置路径
-     *
-     * @param config Bukkit 已加载的 YAML 配置对象
-     * @return 完成格式和范围校验后的运行期配置快照
-     * @throws IllegalArgumentException 当配置值超出允许范围或格式不合法时抛出
-     */
     public static PluginConfig load(FileConfiguration config) {
         // 前缀既会展示给玩家, 也会参与 HMAC 载荷计算
         // 因此所有服务器都必须使用稳定的大写标准值
@@ -138,27 +124,14 @@ public record PluginConfig(
         return new PluginConfig(code, player, storage, server, language, remove, security);
     }
 
-    /**
-     * 保留 MySQL 配置快捷访问器, 便于现有调用方不关心 storage 包装层
-     *
-     * @return 当前快照中的 MySQL 配置
-     */
     public MysqlSettings mysql() {
         return storage.mysql();
     }
 
-    /**
-     * 保留 SQLite 配置快捷访问器, 供数据库管理器和测试直接读取
-     *
-     * @return 当前快照中的 SQLite 配置
-     */
     public SqliteSettings sqlite() {
         return storage.sqlite();
     }
 
-    /**
-     * 读取去除首尾空白后的字符串, 同时保留传入的默认值
-     */
     private static String string(FileConfiguration config, String path, String fallback) {
         if (!config.isSet(path)) {
             return fallback;
@@ -170,9 +143,6 @@ public record PluginConfig(
         return text.trim();
     }
 
-    /**
-     * 读取布尔值, 显式拒绝字符串或其他会被 Bukkit 静默转换的类型
-     */
     private static boolean bool(FileConfiguration config, String path, boolean fallback) {
         if (!config.isSet(path)) {
             return fallback;
@@ -184,9 +154,6 @@ public record PluginConfig(
         return bool;
     }
 
-    /**
-     * 读取整数, 并在数值可能影响运行稳定性时快速失败
-     */
     private static int intRange(FileConfiguration config, String path, int fallback, int min, int max) {
         int value = intValue(config, path, fallback);
         if (value < min || value > max) {
@@ -195,9 +162,6 @@ public record PluginConfig(
         return value;
     }
 
-    /**
-     * 读取 long 值, 并按 HikariCP 超时配置范围进行校验
-     */
     private static long longRange(FileConfiguration config, String path, long fallback, long min, long max) {
         long value = longValue(config, path, fallback);
         if (value < min || value > max) {
@@ -228,9 +192,6 @@ public record PluginConfig(
         throw new IllegalArgumentException(path + " must be an integer");
     }
 
-    /**
-     * 确保用于标识符或资源路径的值保持安全格式
-     */
     private static String requirePattern(String value, Pattern pattern, String path) {
         if (!pattern.matcher(value).matches()) {
             throw new IllegalArgumentException(path + " contains unsupported characters");
@@ -238,9 +199,6 @@ public record PluginConfig(
         return value;
     }
 
-    /**
-     * 读取并校验 MySQL 专属配置; 只有 storage.type=mysql 时会调用
-     */
     private static MysqlSettings mysqlSettings(FileConfiguration config) {
         // 表前缀后续会插入 SQL 标识符中, 因此使用前必须限制为安全字符
         String tablePrefix = requirePattern(
@@ -270,9 +228,6 @@ public record PluginConfig(
         );
     }
 
-    /**
-     * 读取并校验 SQLite 专属配置; 文件名只允许落在插件数据目录下
-     */
     private static SqliteSettings sqliteSettings(FileConfiguration config) {
         return new SqliteSettings(requirePattern(
                 string(config, "storage.sqlite.file", "whitelist.db"),
@@ -303,11 +258,6 @@ public record PluginConfig(
         return new SqliteSettings("whitelist.db");
     }
 
-    /**
-     * 读取服务器模式列表配置, 用于控制只在指定类型服务器上执行某些动作
-     *
-     * <p>未显式配置时使用传入默认值; 显式配置为空列表时表示所有模式都不启用该动作
-     */
     private static Set<ServerMode> serverModes(FileConfiguration config, String path, Set<ServerMode> fallback) {
         if (!config.isSet(path)) {
             return Set.copyOf(fallback);
@@ -346,12 +296,6 @@ public record PluginConfig(
     /**
      * 邀请码签名和校验配置
      *
-     * @param prefix 邀请码前缀, 同时参与 HMAC 载荷计算
-     * @param secret HMAC 密钥
-     * @param suffixLength Base32 后缀长度
-     * @param validDays 邀请码可验证的自然日数量
-     * @param zoneId 签发日期和过期时间使用的时区
-     * @param caseSensitive 是否区分玩家输入的邀请码大小写
      */
     public record CodeSettings(
             String prefix,
@@ -366,7 +310,6 @@ public record PluginConfig(
     /**
      * 用于生成标准白名单键的玩家身份策略
      *
-     * @param uuidSource 当前 UUID 来源策略
      */
     public record PlayerSettings(UuidSource uuidSource) {
     }
@@ -376,9 +319,6 @@ public record PluginConfig(
      *
      * <p>未启用后端只保存安全默认值, 不代表用户配置已经通过该后端的专属校验
      *
-     * @param type 当前启用的存储后端类型
-     * @param mysql MySQL 后端配置
-     * @param sqlite SQLite 后端配置
      */
     public record StorageSettings(StorageType type, MysqlSettings mysql, SqliteSettings sqlite) {
     }
@@ -386,19 +326,6 @@ public record PluginConfig(
     /**
      * MySQL 连接和 HikariCP 连接池配置
      *
-     * @param host MySQL 主机名或 IP
-     * @param port MySQL 端口
-     * @param database 数据库名
-     * @param username 数据库用户名
-     * @param password 数据库密码
-     * @param tablePrefix 插件表名前缀
-     * @param useSsl 是否在 JDBC 连接中启用 SSL
-     * @param allowPublicKeyRetrieval 是否允许 Connector/J 请求 RSA 公钥
-     * @param maximumPoolSize HikariCP 最大连接数
-     * @param minimumIdle HikariCP 最小空闲连接数
-     * @param connectionTimeout 借出连接超时时间, 毫秒
-     * @param idleTimeout 空闲连接保留时间, 毫秒
-     * @param maxLifetime 单个连接最长生命周期, 毫秒
      */
     public record MysqlSettings(
             String host,
@@ -420,8 +347,6 @@ public record PluginConfig(
     /**
      * 当前服务器的行为开关: 登录服负责验证, 受保护服务器负责拒绝未过白玩家
      *
-     * @param name 当前服务器名称
-     * @param mode 当前服务器角色
      */
     public record ServerSettings(String name, ServerMode mode) {
     }
@@ -429,7 +354,6 @@ public record PluginConfig(
     /**
      * 从插件数据目录 lang 文件夹中选择的语言文件
      *
-     * @param file 语言文件名
      */
     public record LanguageSettings(String file) {
     }
@@ -440,16 +364,8 @@ public record PluginConfig(
      * <p>kickOnlinePlayer 是总开关; kickServerModes 决定哪些服务器模式会执行本服在线玩家踢出
      * 默认只在 protected 模式踢出, 登录服保留玩家在线以便重新查看状态或再次验证
      *
-     * @param kickOnlinePlayer 是否允许撤销后踢出本服在线玩家
-     * @param kickServerModes 允许执行撤销踢出的服务器模式集合
      */
     public record RemoveSettings(boolean kickOnlinePlayer, Set<ServerMode> kickServerModes) {
-        /**
-         * 判断指定服务器模式下是否应该执行撤销踢出
-         *
-         * @param mode 当前服务器模式
-         * @return 总开关开启且当前模式在允许集合中时返回 true
-         */
         public boolean shouldKickIn(ServerMode mode) {
             return kickOnlinePlayer && kickServerModes.contains(mode);
         }
@@ -458,7 +374,6 @@ public record PluginConfig(
     /**
      * 邀请码验证安全策略
      *
-     * @param verifyRateLimit 邀请码验证失败限流配置
      */
     public record SecuritySettings(VerifyRateLimitSettings verifyRateLimit) {
     }
@@ -469,20 +384,6 @@ public record PluginConfig(
      * <p>enabled 是整套验证限流的总开关, playerEnabled 和 ipEnabled 分别控制玩家 UUID 与 IP 维度
      * 这样代理端真实 IP 未配置完成时可以单独关闭 IP 维度, 同时保留玩家维度保护
      *
-     * @param enabled 是否启用整套验证限流
-     * @param playerEnabled 是否启用玩家 UUID 维度
-     * @param maxFailuresPerPlayer 玩家维度窗口内最大失败次数
-     * @param playerWindowSeconds 玩家维度统计窗口秒数
-     * @param ipEnabled 是否启用 IP 维度
-     * @param maxFailuresPerIp IP 维度窗口内最大失败次数
-     * @param ipWindowSeconds IP 维度统计窗口秒数
-     * @param lockSeconds 触发限流后的锁定秒数
-     * @param kickOnLock 锁定或限流时是否踢出玩家
-     * @param blockedLogIntervalSeconds 锁定期间重复尝试的审计日志最短间隔
-     * @param notifyConsole 是否向后台输出安全通知
-     * @param notifyAdmins 是否通知在线管理员
-     * @param notifyPermission 接收安全通知需要的权限
-     * @param notifyIntervalSeconds 同一维度重复通知的最短间隔
      */
     public record VerifyRateLimitSettings(
             boolean enabled,
@@ -507,7 +408,6 @@ public record PluginConfig(
      *
      * <p>文件名会在插件数据目录下解析, 不允许路径分隔符或上级目录跳转
      *
-     * @param file SQLite 数据库文件名
      */
     public record SqliteSettings(String file) {
     }
@@ -521,13 +421,6 @@ public record PluginConfig(
         /** 通过插件数据目录中的 SQLite 文件保存白名单状态和审计日志 */
         SQLITE;
 
-        /**
-         * 解析配置中的 storage.type 值
-         *
-         * @param raw 配置中的原始文本
-         * @return 匹配到的存储后端类型
-         * @throws IllegalArgumentException 当值不是 mysql 或 sqlite 时抛出
-         */
         public static StorageType from(String raw) {
             return switch (raw.toLowerCase(Locale.ROOT)) {
                 case "mysql" -> MYSQL;
@@ -548,13 +441,6 @@ public record PluginConfig(
         /** 完全信任服务端实际看到的 UUID */
         SERVER;
 
-        /**
-         * 解析配置中的 uuid-source 值
-         *
-         * @param raw 配置中的原始文本
-         * @return 匹配到的 UUID 来源策略
-         * @throws IllegalArgumentException 当值不在支持范围内时抛出
-         */
         public static UuidSource from(String raw) {
             return switch (raw.toLowerCase(Locale.ROOT)) {
                 case "mojang" -> MOJANG;
@@ -574,13 +460,6 @@ public record PluginConfig(
         /** 受保护服务器, 预登录阶段会拒绝未过白玩家 */
         PROTECTED;
 
-        /**
-         * 解析配置中的服务器模式
-         *
-         * @param raw 配置中的原始文本
-         * @return 匹配到的服务器模式
-         * @throws IllegalArgumentException 当值不是 login 或 protected 时抛出
-         */
         public static ServerMode from(String raw) {
             return switch (raw.toLowerCase(Locale.ROOT)) {
                 case "login" -> LOGIN;

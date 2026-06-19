@@ -34,11 +34,6 @@ public final class DatabaseManager implements AutoCloseable {
     private boolean closeRequested;
     private int activeLeases;
 
-    /**
-     * 使用 MySQL 配置创建数据库管理器, 兼容只关心 MySQL 的单元测试
-     *
-     * @param settings 已校验的 MySQL 配置
-     */
     public DatabaseManager(PluginConfig.MysqlSettings settings) {
         this(new PluginConfig.StorageSettings(
                 PluginConfig.StorageType.MYSQL,
@@ -47,21 +42,10 @@ public final class DatabaseManager implements AutoCloseable {
         ));
     }
 
-    /**
-     * 使用当前工作目录作为本地数据库目录创建数据库管理器
-     *
-     * @param settings 已校验的存储后端配置
-     */
     public DatabaseManager(PluginConfig.StorageSettings settings) {
         this(settings, Path.of("."));
     }
 
-    /**
-     * 保存已校验的存储配置, 供后续启动连接池和选择 SQL 方言使用
-     *
-     * @param settings 已校验的存储后端配置
-     * @param dataDirectory 插件数据目录, SQLite 文件必须被解析在该目录内部
-     */
     public DatabaseManager(PluginConfig.StorageSettings settings, Path dataDirectory) {
         this.settings = settings;
         this.dataDirectory = Objects.requireNonNull(dataDirectory, "dataDirectory");
@@ -70,13 +54,6 @@ public final class DatabaseManager implements AutoCloseable {
         this.repositorySql = SqlTemplates.load(dialect.repositoryResource);
     }
 
-    /**
-     * 重新创建连接池, 并确保当前存储后端所需数据表存在
-     *
-     * <p>任何连接池或建表失败都会关闭刚创建的数据源, 调用方随后会把数据库状态标记为不可用
-     *
-     * @throws SQLException 当连接池启动或表结构初始化失败时抛出
-     */
     public synchronized void start() throws SQLException {
         forceClose();
         closeRequested = false;
@@ -102,30 +79,14 @@ public final class DatabaseManager implements AutoCloseable {
         }
     }
 
-    /**
-     * 判断调用方当前是否可以从连接池借出连接
-     *
-     * @return 数据源是否已经启动且未关闭
-     */
     public synchronized boolean isReady() {
         return ready && dataSource != null && !dataSource.isClosed();
     }
 
-    /**
-     * 判断连接池是否已经关闭, 供插件清理 retired 运行期引用
-     *
-     * @return 数据源是否已经关闭或尚未创建
-     */
     public synchronized boolean isClosed() {
         return dataSource == null || dataSource.isClosed();
     }
 
-    /**
-     * 借出数据库连接; 如果启动未完成则快速失败
-     *
-     * @return 来自当前连接池的 JDBC 连接
-     * @throws SQLException 当数据库尚未就绪或连接池借出失败时抛出
-     */
     public synchronized Connection getConnection() throws SQLException {
         HikariDataSource currentDataSource = dataSource;
         if (!ready || currentDataSource == null || currentDataSource.isClosed()) {
@@ -134,47 +95,24 @@ public final class DatabaseManager implements AutoCloseable {
         return currentDataSource.getConnection();
     }
 
-    /**
-     * 返回带当前方言引号的白名单玩家表名
-     *
-     * @return 可直接插入 SQL 模板的玩家表标识符
-     */
     public String playersTable() {
         return quote(tablePrefix() + "whitelist_players");
     }
 
-    /**
-     * 返回带当前方言引号的审计日志表名
-     *
-     * @return 可直接插入 SQL 模板的日志表标识符
-     */
     public String logsTable() {
         return quote(tablePrefix() + "whitelist_logs");
     }
 
-    /**
-     * 返回当前后端对应的仓库 SQL 模板
-     *
-     * @return 当前 SQL 方言对应的仓库模板集合
-     */
     SqlTemplates repositorySql() {
         return repositorySql;
     }
 
-    /**
-     * 关闭当前连接池, 并标记数据库不可用
-     */
     @Override
     public synchronized void close() {
         closeRequested = true;
         forceClose();
     }
 
-    /**
-     * 标记为旧运行期连接池, 等已捕获快照释放后再关闭
-     *
-     * @return 如果仍有快照持有该连接池, 返回 true 表示需要调用方继续追踪
-     */
     public synchronized boolean retire() {
         closeRequested = true;
         if (activeLeases == 0) {
@@ -184,13 +122,6 @@ public final class DatabaseManager implements AutoCloseable {
         return true;
     }
 
-    /**
-     * 为一次命令或监听器快照保留连接池生命周期
-     *
-     * <p>快照释放前, 即使管理员执行 reload, 旧数据源也会等当前操作结束后再关闭
-     *
-     * @return 需要在快照结束时关闭的租约
-     */
     public synchronized Lease lease() {
         activeLeases++;
         return new Lease(this);
@@ -225,9 +156,7 @@ public final class DatabaseManager implements AutoCloseable {
             this.database = database;
         }
 
-        /**
-         * {@inheritDoc}
-         */
+
         @Override
         public synchronized void close() {
             if (closed) {
@@ -238,11 +167,6 @@ public final class DatabaseManager implements AutoCloseable {
         }
     }
 
-    /**
-     * 在数据表不存在时创建插件所需的数据表和索引
-     *
-     * <p>MySQL 的索引随建表语句创建, SQLite 则使用独立模板创建索引
-     */
     private void initializeSchema() throws SQLException {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
@@ -254,9 +178,6 @@ public final class DatabaseManager implements AutoCloseable {
         }
     }
 
-    /**
-     * 构建建表模板所需的安全占位符
-     */
     private Map<String, String> schemaPlaceholders() {
         return Map.ofEntries(
                 Map.entry("players_table", playersTable()),
@@ -274,9 +195,6 @@ public final class DatabaseManager implements AutoCloseable {
         );
     }
 
-    /**
-     * 根据配置值和固定安全默认值构建 JDBC 连接地址
-     */
     String jdbcUrl() {
         return switch (settings.type()) {
             case MYSQL -> mysqlJdbcUrl();
@@ -284,9 +202,6 @@ public final class DatabaseManager implements AutoCloseable {
         };
     }
 
-    /**
-     * 根据 MySQL 配置拼接带固定安全参数的连接地址
-     */
     private String mysqlJdbcUrl() {
         PluginConfig.MysqlSettings mysql = settings.mysql();
         return "jdbc:mysql://"
@@ -304,9 +219,6 @@ public final class DatabaseManager implements AutoCloseable {
                 + "&serverTimezone=UTC";
     }
 
-    /**
-     * 应用 MySQL 连接池和驱动优化配置
-     */
     private void applyMysqlSettings(HikariConfig hikari) {
         PluginConfig.MysqlSettings mysql = settings.mysql();
         hikari.setUsername(mysql.username());
@@ -324,11 +236,6 @@ public final class DatabaseManager implements AutoCloseable {
         hikari.addDataSourceProperty("rewriteBatchedStatements", "true");
     }
 
-    /**
-     * 应用 SQLite 单文件数据库连接池配置
-     *
-     * <p>SQLite 同一时间只有一个写事务, 因此池大小固定为 1, 避免多连接写入竞争放大锁等待
-     */
     private void applySqliteSettings(HikariConfig hikari) {
         hikari.setDriverClassName("org.sqlite.JDBC");
         hikari.setMaximumPoolSize(1);
@@ -339,9 +246,6 @@ public final class DatabaseManager implements AutoCloseable {
         hikari.setConnectionInitSql("PRAGMA busy_timeout=5000");
     }
 
-    /**
-     * 确保 SQLite 数据库文件所在目录存在
-     */
     private void prepareSqliteFile() throws SQLException {
         try {
             Files.createDirectories(sqliteFile().getParent());
@@ -350,9 +254,6 @@ public final class DatabaseManager implements AutoCloseable {
         }
     }
 
-    /**
-     * 为 SQLite 初始化写前日志模式, 降低读写互相阻塞的概率
-     */
     private void initializeDialect(Connection connection, Statement statement) throws SQLException {
         if (settings.type() != PluginConfig.StorageType.SQLITE) {
             return;
@@ -363,11 +264,6 @@ public final class DatabaseManager implements AutoCloseable {
         connection.setAutoCommit(true);
     }
 
-    /**
-     * 解析 SQLite 文件在插件数据目录中的实际路径
-     *
-     * <p>配置加载阶段已经限制文件名格式, 这里再次用 normalize + startsWith 防御路径越界
-     */
     private Path sqliteFile() {
         Path base = dataDirectory.toAbsolutePath().normalize();
         Path file = base.resolve(settings.sqlite().file()).normalize();
@@ -381,9 +277,6 @@ public final class DatabaseManager implements AutoCloseable {
         return settings.type() == PluginConfig.StorageType.MYSQL ? settings.mysql().tablePrefix() : "";
     }
 
-    /**
-     * 使用当前 SQL 方言的引用符包裹已校验的 SQL 标识符
-     */
     private String quote(String identifier) {
         return dialect.quote + identifier + dialect.quote;
     }

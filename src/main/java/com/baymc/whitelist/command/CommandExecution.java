@@ -3,7 +3,7 @@ package com.baymc.whitelist.command;
 /**
  * 描述子命令执行结束后运行期快照的归属状态
  *
- * <p>同步命令返回 FINISHED, 由主命令入口关闭 RuntimeState;
+ * <p>同步命令返回 FINISHED, 由主命令入口关闭 RuntimeState
  * 异步命令返回 ASYNC_RUNNING, 由异步任务在 finally 中关闭 RuntimeState
  */
 public enum CommandExecution {

@@ -15,9 +15,9 @@ import java.util.Optional;
 import java.util.logging.Level;
 
 /**
- * 处理 /baymcwhitelist status <玩家名|UUID>
+ * 处理 /baymcwhitelist status 参数为玩家名或 UUID
  *
- * <p>该命令会先把输入解析到明确 UUID, 再异步查询数据库,
+ * <p>该命令会先把输入解析到明确 UUID, 再异步查询数据库
  * 避免按历史玩家名误判白名单状态
  */
 public final class StatusSubcommand implements BayMcSubcommand {
@@ -90,9 +90,6 @@ public final class StatusSubcommand implements BayMcSubcommand {
         return new LookupResult(runtime.repository().findByUuid(target.playerUuid()));
     }
 
-    /**
-     * 输出一条完整白名单记录的状态视图
-     */
     private void sendStatus(
             CommandContext context,
             WhitelistRecord record,

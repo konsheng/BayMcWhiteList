@@ -19,7 +19,7 @@ import java.util.Optional;
 import java.util.logging.Level;
 
 /**
- * 处理 /baymcwhitelist remove <玩家名|UUID>
+ * 处理 /baymcwhitelist remove 参数为玩家名或 UUID
  *
  * <p>该命令只按解析出的 UUID 删除白名单记录, 删除成功后再按配置决定
  * 是否踢出当前服务器在线玩家
@@ -118,11 +118,6 @@ public final class RemoveSubcommand implements BayMcSubcommand {
         return new LookupResult(runtime.repository().findByUuid(target.playerUuid()));
     }
 
-    /**
-     * 完成删除后的反馈和可选踢出流程
-     *
-     * <p>踢人需要先到全局调度器查找在线玩家, 再切到目标玩家调度器执行 kick
-     */
     private void completeRemoval(
             CommandContext context,
             WhitelistRecord record

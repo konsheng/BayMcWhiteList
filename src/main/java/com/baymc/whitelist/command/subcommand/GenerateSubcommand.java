@@ -14,7 +14,7 @@ import com.baymc.whitelist.mojang.MojangProfileLookupException;
 import java.util.Map;
 
 /**
- * 处理 /baymcwhitelist generate <玩家名|UUID>
+ * 处理 /baymcwhitelist generate 参数为玩家名或 UUID
  *
  * <p>该命令只生成绑定目标 UUID 的邀请码, 不查询也不写入白名单数据库状态
  */
@@ -81,7 +81,7 @@ public final class GenerateSubcommand implements BayMcSubcommand {
         return context.runAsyncClosing(() -> {
             try {
                 /*
-                 * 只有 Mojang 模式的离线名称或 UUID 需要外部档案查询;
+                 * 只有 Mojang 模式的离线名称或 UUID 需要外部档案查询
                  * 查询完成后再回到发送者调度器输出生成结果
                  */
                 PlayerIdentity identity = context.targetResolver().resolveMojangGenerationIdentity(
@@ -110,9 +110,6 @@ public final class GenerateSubcommand implements BayMcSubcommand {
         });
     }
 
-    /**
-     * 使用当前运行期的邀请码服务生成绑定 UUID 的邀请码并反馈给发送者
-     */
     private void sendGeneratedCode(CommandContext context, PlayerIdentity identity) {
         GeneratedCode generatedCode = context.runtime().inviteCodeService().generate(identity.uuidText());
         context.runtime().lang().send(

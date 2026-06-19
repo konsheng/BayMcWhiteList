@@ -37,24 +37,10 @@ public final class WhitelistCommand implements TabExecutor {
 
     private final BayMcWhiteListPlugin plugin;
 
-    /**
-     * 创建玩家侧白名单命令处理器
-     *
-     * @param plugin 当前插件实例
-     */
     public WhitelistCommand(BayMcWhiteListPlugin plugin) {
         this.plugin = plugin;
     }
 
-    /**
-     * 分发玩家侧状态查询或邀请码验证请求
-     *
-     * @param sender 命令发送者
-     * @param command Bukkit 命令对象
-     * @param label 玩家使用的命令标签
-     * @param args 命令参数
-     * @return Bukkit 命令处理结果, 始终返回 true 以使用语言文件提示
-     */
     @Override
     public boolean onCommand(
             @NotNull CommandSender sender,
@@ -127,15 +113,6 @@ public final class WhitelistCommand implements TabExecutor {
         }
     }
 
-    /**
-     * 玩家命令当前不提供补全
-     *
-     * @param sender 命令发送者
-     * @param command Bukkit 命令对象
-     * @param label 玩家使用的命令标签
-     * @param args 当前参数
-     * @return 空补全列表
-     */
     @Override
     public @Nullable List<String> onTabComplete(
             @NotNull CommandSender sender,
@@ -168,11 +145,6 @@ public final class WhitelistCommand implements TabExecutor {
         }
     }
 
-    /**
-     * 构建玩家自助状态查询占位符
-     *
-     * <p>自助查询只展示当前玩家自己的记录; 展示字段为空时回退到当前解析出的玩家身份
-     */
     private Map<String, String> selfStatusPlaceholders(
             BayMcWhiteListPlugin.RuntimeState runtime,
             PlayerIdentity identity,
