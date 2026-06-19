@@ -394,8 +394,8 @@ public final class DatabaseManager implements AutoCloseable {
     private enum StorageDialect {
         MYSQL(
                 PluginConfig.StorageType.MYSQL,
-                "sql/schema.sql",
-                "sql/repository.sql",
+                "sql/mysql/schema.sql",
+                "sql/mysql/repository.sql",
                 List.of("create_whitelist_players", "create_whitelist_logs"),
                 "`"
         ),

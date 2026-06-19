@@ -4,33 +4,48 @@ version: ${version}
 main: com.baymc.whitelist.BayMcWhiteListPlugin
 api-version: "26.1.2"
 folia-supported: true
+authors: [Konsheng]
+website: "https://github.com/konsheng/BayMcWhiteList"
+description: Paper / Folia 现代化的高性能轻量级白名单插件
 
 # 命令权限在代码中检查, 确保拒绝提示都能走 lang/*.yml
 commands:
   baymcwhitelist:
+    description: 管理白名单记录和插件运行状态
     aliases:
       - wl
-  whitelist: {}
+  whitelist:
+    description: 提交邀请码或查询自身白名单状态
 
 # 权限默认值对应玩家命令和管理员命令的分工
 permissions:
   baymcwhitelist.use:
+    description: 允许玩家使用邀请码完成白名单验证
     default: true
   baymcwhitelist.status.self:
+    description: 允许玩家查询自身白名单状态
     default: true
   baymcwhitelist.add:
+    description: 允许管理员手动添加白名单记录
     default: op
   baymcwhitelist.generate:
+    description: 允许管理员生成玩家邀请码
     default: op
   baymcwhitelist.status:
+    description: 允许管理员查询玩家白名单状态
     default: op
   baymcwhitelist.remove:
+    description: 允许管理员移除白名单记录
     default: op
   baymcwhitelist.reload:
+    description: 允许管理员重载插件配置和语言文件
     default: op
   baymcwhitelist.info:
+    description: 允许管理员查看插件运行信息
     default: op
   baymcwhitelist.help:
+    description: 允许管理员查看管理命令帮助
     default: op
   baymcwhitelist.notify:
+    description: 允许管理员接收验证安全通知
     default: op

@@ -58,7 +58,7 @@ class WhitelistRepositoryTest {
      */
     @Test
     void findByUuidQueryUsesIndexedColumn() {
-        String sql = SqlTemplates.load("sql/repository.sql").render("find_by_uuid", tablePlaceholders());
+        String sql = SqlTemplates.load("sql/mysql/repository.sql").render("find_by_uuid", tablePlaceholders());
 
         assertTrue(sql.contains("WHERE player_uuid = ?"));
         assertFalse(sql.contains("LOWER("));
@@ -69,7 +69,7 @@ class WhitelistRepositoryTest {
      */
     @Test
     void schemaAllowsManualWhitelistRecordsWithoutInviteCode() {
-        String sql = SqlTemplates.load("sql/schema.sql").render("create_whitelist_players", schemaPlaceholders());
+        String sql = SqlTemplates.load("sql/mysql/schema.sql").render("create_whitelist_players", schemaPlaceholders());
 
         assertTrue(sql.contains("code VARCHAR(" + StorageLimits.CODE + ")"));
         assertFalse(sql.contains("code VARCHAR(" + StorageLimits.CODE + ") NOT NULL"));
@@ -77,7 +77,7 @@ class WhitelistRepositoryTest {
 
     @Test
     void schemaUsesPlayerUuidAsWhitelistPrimaryKey() {
-        String sql = SqlTemplates.load("sql/schema.sql").render("create_whitelist_players", schemaPlaceholders());
+        String sql = SqlTemplates.load("sql/mysql/schema.sql").render("create_whitelist_players", schemaPlaceholders());
 
         assertTrue(sql.contains("player_uuid VARCHAR(" + StorageLimits.PLAYER_UUID + ") NOT NULL"));
         assertTrue(sql.contains("PRIMARY KEY (player_uuid)"));
@@ -86,8 +86,8 @@ class WhitelistRepositoryTest {
 
     @Test
     void logSchemaAndInsertUsePlayerUuidField() {
-        String schemaSql = SqlTemplates.load("sql/schema.sql").render("create_whitelist_logs", schemaPlaceholders());
-        String insertSql = SqlTemplates.load("sql/repository.sql").render("insert_log", tablePlaceholders());
+        String schemaSql = SqlTemplates.load("sql/mysql/schema.sql").render("create_whitelist_logs", schemaPlaceholders());
+        String insertSql = SqlTemplates.load("sql/mysql/repository.sql").render("insert_log", tablePlaceholders());
 
         assertTrue(schemaSql.contains("player_uuid VARCHAR(" + StorageLimits.PLAYER_UUID + ") NOT NULL"));
         assertTrue(schemaSql.contains("INDEX idx_player_uuid (player_uuid)"));
@@ -101,7 +101,7 @@ class WhitelistRepositoryTest {
      */
     @Test
     void manualInsertStoresNullCodeAndLastSeen() {
-        String sql = SqlTemplates.load("sql/repository.sql").render("insert_manual_player", tablePlaceholders());
+        String sql = SqlTemplates.load("sql/mysql/repository.sql").render("insert_manual_player", tablePlaceholders());
 
         assertTrue(sql.contains("INSERT IGNORE INTO `players`"));
         assertTrue(sql.contains("?, ?, NULL, ?, ?, ?, NULL"));
