@@ -29,8 +29,8 @@ import java.util.logging.Level;
 /**
  * 处理玩家侧 /whitelist 邀请码验证和自助状态查询命令
  *
- * <p>玩家命令只接受游戏内玩家执行。无参数时查询自己的白名单状态,
- * 单参数时只允许在 login 模式提交邀请码并写入当前数据库后端。
+ * <p>玩家命令只接受游戏内玩家执行, 无参数时查询自己的白名单状态
+ * 单参数时只允许在 login 模式提交邀请码并写入当前数据库后端
  */
 public final class WhitelistCommand implements TabExecutor {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");

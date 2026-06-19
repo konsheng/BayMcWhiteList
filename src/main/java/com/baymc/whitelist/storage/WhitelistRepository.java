@@ -14,11 +14,11 @@ import java.util.Optional;
 /**
  * 通过当前数据库后端读写白名单状态和审计日志
  *
- * <p>仓库层只接收已经解析好的玩家 UUID, 不负责按玩家名推断身份。
- * 管理员命令和登录监听器必须在进入这里前完成 UUID 来源选择或 Mojang 档案解析。
+ * <p>仓库层只接收已经解析好的玩家 UUID, 不负责按玩家名推断身份
+ * 管理员命令和登录监听器必须在进入这里前完成 UUID 来源选择或 Mojang 档案解析
  *
- * <p>所有外部文本在写入审计日志前会按 StorageLimits 截断,
- * 避免超长邀请码, 玩家名或错误消息导致日志写入失败。
+ * <p>所有外部文本在写入审计日志前会按 StorageLimits 截断
+ * 避免超长邀请码, 玩家名或错误消息导致日志写入失败
  */
 public final class WhitelistRepository {
     private final DatabaseManager database;

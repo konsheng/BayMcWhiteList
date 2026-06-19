@@ -31,8 +31,8 @@ import java.util.logging.Level;
 /**
  * 处理 /baymcwhitelist 管理员命令
  *
- * <p>本类只把命令输入解析到明确的 PlayerIdentity 或 LookupTarget。
- * 真正入库查询和删除始终按 UUID 执行, 避免玩家改名后按历史名称误删记录。
+ * <p>本类只把命令输入解析到明确的 PlayerIdentity 或 LookupTarget
+ * 真正入库查询和删除始终按 UUID 执行, 避免玩家改名后按历史名称误删记录
  */
 public final class BayMcWhiteListCommand implements TabExecutor {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -653,7 +653,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     /**
      * 为状态命令按当前 UUID 来源解析查询目标
      *
-     * <p>状态查询允许名称解析, 但进入仓库前仍会落到一个明确 UUID。
+     * <p>状态查询允许名称解析, 但进入仓库前仍会落到一个明确 UUID
      * server UUID 模式下离线名称无法安全推断, 因此会被拒绝
      */
     private LookupTarget resolveStatusTarget(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String input) {
@@ -695,7 +695,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     /**
      * 按当前 UUID 来源解析移除目标
      *
-     * <p>移除命令最终只删除解析出的 UUID 记录。
+     * <p>移除命令最终只删除解析出的 UUID 记录
      * Mojang 模式的离线名称会先查正版档案, offline-name 模式才按离线名算法本地计算 UUID
      */
     private LookupTarget resolveRemoveTarget(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String input) {

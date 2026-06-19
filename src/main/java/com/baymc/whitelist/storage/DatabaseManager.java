@@ -17,11 +17,11 @@ import java.util.Objects;
 /**
  * 持有 HikariCP 数据源, 并按当前存储后端初始化数据库表结构
  *
- * <p>该类是 MySQL 与 SQLite 的方言分界点: 上层仓库只关心模板名称和参数绑定,
- * 具体 JDBC URL, 连接池参数, 建表模板和 SQL 引号规则都在这里集中选择。
+ * <p>该类是 MySQL 与 SQLite 的方言分界点: 上层仓库只关心模板名称和参数绑定
+ * 具体 JDBC URL, 连接池参数, 建表模板和 SQL 引号规则都在这里集中选择
  *
- * <p>reload 时旧连接池可能仍被异步命令快照持有, 因此通过 Lease 延迟关闭旧数据源,
- * 避免同一次命令在执行中途被新配置或新数据库连接打断。
+ * <p>reload 时旧连接池可能仍被异步命令快照持有, 因此通过 Lease 延迟关闭旧数据源
+ * 避免同一次命令在执行中途被新配置或新数据库连接打断
  */
 public final class DatabaseManager implements AutoCloseable {
     private final PluginConfig.StorageSettings settings;

@@ -21,8 +21,8 @@ import java.util.regex.Pattern;
 /**
  * 通过 Mojang / Minecraft Services API 查询正版玩家档案
  *
- * <p>外部响应只在通过 UUID 格式和玩家名格式校验后才会返回给命令层。
- * 查询失败和响应格式异常会转为 MojangProfileLookupException, 由命令层给管理员明确反馈。
+ * <p>外部响应只在通过 UUID 格式和玩家名格式校验后才会返回给命令层
+ * 查询失败和响应格式异常会转为 MojangProfileLookupException, 由命令层给管理员明确反馈
  */
 public final class MojangProfileService {
     private static final String NAME_LOOKUP_URL = "https://api.minecraftservices.com/minecraft/profile/lookup/name/";
