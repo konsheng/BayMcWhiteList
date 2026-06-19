@@ -73,8 +73,8 @@ public record PluginConfig(
                 config.getBoolean("code.case-sensitive", false)
         );
 
-        PlayerSettings player = new PlayerSettings(PlayerIdType.from(
-                string(config, "player.id-type", "uuid")
+        PlayerSettings player = new PlayerSettings(UuidSource.from(
+                string(config, "player.uuid-source", "mojang")
         ));
 
         // 表前缀后续会插入 SQL 标识符中, 因此使用前必须限制为安全字符
@@ -220,7 +220,7 @@ public record PluginConfig(
     /**
      * 用于生成标准白名单键的玩家身份策略
      */
-    public record PlayerSettings(PlayerIdType idType) {
+    public record PlayerSettings(UuidSource uuidSource) {
     }
 
     /**
@@ -276,7 +276,7 @@ public record PluginConfig(
     /**
      * 玩家执行 /whitelist 时的失败计数和临时锁定配置
      *
-     * <p>enabled 是整套验证限流的总开关, playerEnabled 和 ipEnabled 分别控制玩家标识与 IP 维度
+     * <p>enabled 是整套验证限流的总开关, playerEnabled 和 ipEnabled 分别控制玩家 UUID 与 IP 维度
      * 这样代理端真实 IP 未配置完成时可以单独关闭 IP 维度, 同时保留玩家维度保护
      */
     public record VerifyRateLimitSettings(
@@ -298,20 +298,18 @@ public record PluginConfig(
     }
 
     /**
-     * 白名单记录支持的标准玩家标识类型
+     * 白名单记录支持的 UUID 来源
      */
-    public enum PlayerIdType {
-        UUID,
-        NAME;
+    public enum UuidSource {
+        MOJANG;
 
         /**
-         * 解析配置中的 id-type 值
+         * 解析配置中的 uuid-source 值
          */
-        public static PlayerIdType from(String raw) {
+        public static UuidSource from(String raw) {
             return switch (raw.toLowerCase(Locale.ROOT)) {
-                case "uuid" -> UUID;
-                case "name" -> NAME;
-                default -> throw new IllegalArgumentException("player.id-type must be uuid or name");
+                case "mojang" -> MOJANG;
+                default -> throw new IllegalArgumentException("player.uuid-source must be mojang");
             };
         }
     }

@@ -61,7 +61,7 @@ security:
     enabled: true
 
     # 是否启用玩家维度限制
-    # true 时同一个玩家标识连续输错邀请码会被临时锁定
+    # true 时同一个玩家 UUID 连续输错邀请码会被临时锁定
     # 建议保持开启, 这是最不容易误伤正常玩家的基础防护
     player-enabled: true
 
@@ -109,15 +109,12 @@ security:
     notify-interval-seconds: 60
 
 # 玩家身份标识配置
-# 该配置决定邀请码绑定到 UUID 还是玩家名, 也决定 MySQL 白名单唯一键
+# 当前阶段只支持 Mojang UUID 作为白名单唯一键
 player:
-  # 正版 online-mode 服务器建议使用 uuid, 离线服或外置登录网络中
-  # 如果玩家名才是稳定账号标识, 可以使用 name
-  # 可选值: uuid, name
-  # uuid 模式下生成邀请码会优先使用在线玩家档案, 离线时查询 Mojang 档案
-  # uuid 模式下移除离线正版玩家名会查询 Mojang 档案后按 UUID 删除; 直接输入 UUID 最明确
-  # 玩家名模式下玩家名会转为小写作为白名单键
-  id-type: "uuid"
+  # 可选值: mojang
+  # 玩家名只作为 Mojang 查询入口; 邀请码、白名单判断和移除都绑定到标准 UUID
+  # 离线服请先确保服务器/代理提供的 UUID 与 Mojang UUID 策略一致
+  uuid-source: "mojang"
 
 # 撤销白名单配置
 remove:

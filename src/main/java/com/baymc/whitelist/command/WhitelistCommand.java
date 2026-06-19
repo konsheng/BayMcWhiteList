@@ -67,7 +67,7 @@ public final class WhitelistCommand implements TabExecutor {
                 return true;
             }
 
-            PlayerIdentity identity = PlayerIdentity.fromPlayer(player, runtime.config().player().idType());
+            PlayerIdentity identity = PlayerIdentity.fromPlayer(player);
             if (!runtime.databaseReady()) {
                 runtime.lang().send(player, "mysql.not-ready");
                 return true;
@@ -119,7 +119,7 @@ public final class WhitelistCommand implements TabExecutor {
             PlayerIdentity identity
     ) {
         try {
-            Optional<WhitelistRecord> record = runtime.repository().findByKey(identity.key());
+            Optional<WhitelistRecord> record = runtime.repository().findByUuid(identity.uuidText());
             runtime.scheduler().runForPlayer(player, () -> {
                 if (record.isPresent()) {
                     runtime.lang().send(player, "player.status-whitelisted",
@@ -148,8 +148,7 @@ public final class WhitelistCommand implements TabExecutor {
     ) {
         return Map.of(
                 "player", valueOrNone(runtime, record == null ? identity.name() : firstText(record.playerName(), identity.name())),
-                "player_key", valueOrNone(runtime, identity.key()),
-                "uuid", valueOrNone(runtime, record == null ? identity.uuid() : firstText(record.playerUuid(), String.valueOf(identity.uuid()))),
+                "uuid", valueOrNone(runtime, record == null ? identity.uuidText() : firstText(record.playerUuid(), identity.uuidText())),
                 "code", valueOrNone(runtime, record == null ? null : record.code()),
                 "issue_date", valueOrNone(runtime, record == null ? null : record.issueDate()),
                 "used_at", format(runtime, record == null ? null : record.usedAt()),
@@ -166,19 +165,19 @@ public final class WhitelistCommand implements TabExecutor {
             String ip
     ) {
         try {
-            if (runtime.repository().isWhitelisted(identity.key())) {
+            if (runtime.repository().isWhitelisted(identity.uuidText())) {
                 logAttemptQuietly(runtime, identity, null, "VERIFY_ALREADY_WHITELISTED", "already_whitelisted", ip);
                 runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "code.already-whitelisted"));
                 return;
             }
 
-            VerifyRateLimiter.Decision locked = runtime.verifyRateLimiter().check(identity.key(), ip);
+            VerifyRateLimiter.Decision locked = runtime.verifyRateLimiter().check(identity.uuidText(), ip);
             if (locked.status() == VerifyRateLimiter.Status.LOCKED) {
                 handleLockedAttempt(runtime, player, identity, rawCode, ip, locked);
                 return;
             }
 
-            VerificationResult result = runtime.inviteCodeService().verify(rawCode, identity.key());
+            VerificationResult result = runtime.inviteCodeService().verify(rawCode, identity.uuidText());
             if (result.status() == VerificationResult.Status.INVALID_FORMAT) {
                 handleInvalidCode(
                         runtime,
@@ -211,7 +210,7 @@ public final class WhitelistCommand implements TabExecutor {
             LocalDateTime usedAt = now(runtime);
             runtime.repository().upsert(identity, result.normalizedCode(), result.issueDate(), usedAt);
             runtime.repository().log(new WhitelistLogEntry(
-                    identity.key(),
+                    identity.uuidText(),
                     identity.name(),
                     "VERIFY_SUCCESS",
                     result.normalizedCode(),
@@ -220,7 +219,7 @@ public final class WhitelistCommand implements TabExecutor {
                     null,
                     usedAt
             ));
-            runtime.verifyRateLimiter().reset(identity.key(), ip);
+            runtime.verifyRateLimiter().reset(identity.uuidText(), ip);
 
             runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "code.success"));
         } catch (SQLException exception) {
@@ -242,7 +241,7 @@ public final class WhitelistCommand implements TabExecutor {
             Map<String, String> invalidPlaceholders
     ) {
         logAttemptQuietly(runtime, identity, rawCode, invalidAction, invalidMessage, ip);
-        VerifyRateLimiter.Decision limited = runtime.verifyRateLimiter().recordFailure(identity.key(), ip);
+        VerifyRateLimiter.Decision limited = runtime.verifyRateLimiter().recordFailure(identity.uuidText(), ip);
         if (limited.status() == VerifyRateLimiter.Status.RATE_LIMITED) {
             logAttemptQuietly(runtime, identity, rawCode, rateLimitedAction(limited.scope()), scopeMessage(limited.scope()), ip);
             notifyRateLimited(runtime, identity, ip, limited);
@@ -300,7 +299,7 @@ public final class WhitelistCommand implements TabExecutor {
         if (!settings.notifyConsole() && !settings.notifyAdmins()) {
             return;
         }
-        if (!runtime.verifyRateLimiter().shouldNotify(decision.scope(), identity.key(), ip)) {
+        if (!runtime.verifyRateLimiter().shouldNotify(decision.scope(), identity.uuidText(), ip)) {
             return;
         }
 
@@ -330,7 +329,7 @@ public final class WhitelistCommand implements TabExecutor {
     ) {
         return Map.of(
                 "player", valueOrNone(runtime, identity.name()),
-                "player_key", valueOrNone(runtime, identity.key()),
+                "uuid", valueOrNone(runtime, identity.uuidText()),
                 "scope", runtime.lang().plain(scopeLanguageKey(decision.scope())),
                 "ip", valueOrNone(runtime, ip),
                 "remaining_seconds", String.valueOf(decision.remainingSeconds())
@@ -347,7 +346,7 @@ public final class WhitelistCommand implements TabExecutor {
     ) {
         try {
             runtime.repository().log(new WhitelistLogEntry(
-                    identity.key(),
+                    identity.uuidText(),
                     identity.name(),
                     action,
                     code,

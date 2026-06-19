@@ -193,7 +193,6 @@ public final class DatabaseManager implements AutoCloseable {
         return Map.of(
                 "players_table", playersTable(),
                 "logs_table", logsTable(),
-                "player_key_length", String.valueOf(StorageLimits.PLAYER_KEY),
                 "player_uuid_length", String.valueOf(StorageLimits.PLAYER_UUID),
                 "player_name_length", String.valueOf(StorageLimits.PLAYER_NAME),
                 "code_length", String.valueOf(StorageLimits.CODE),

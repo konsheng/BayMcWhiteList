@@ -10,7 +10,7 @@ import java.time.ZoneId;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class VerifyRateLimiterTest {
-    private static final String PLAYER_KEY = "player-one";
+    private static final String PLAYER_UUID = "00000000-0000-0000-0000-000000000001";
     private static final String IP = "127.0.0.1";
 
     @Test
@@ -18,9 +18,9 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock);
 
-        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.recordFailure(PLAYER_KEY, IP).status());
-        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.recordFailure(PLAYER_KEY, IP).status());
-        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_KEY, IP).status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.recordFailure(PLAYER_UUID, IP).status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.recordFailure(PLAYER_UUID, IP).status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_UUID, IP).status());
     }
 
     @Test
@@ -28,10 +28,10 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock);
 
-        limiter.recordFailure(PLAYER_KEY, IP);
-        limiter.recordFailure(PLAYER_KEY, IP);
-        VerifyRateLimiter.Decision limited = limiter.recordFailure(PLAYER_KEY, IP);
-        VerifyRateLimiter.Decision locked = limiter.check(PLAYER_KEY, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        VerifyRateLimiter.Decision limited = limiter.recordFailure(PLAYER_UUID, IP);
+        VerifyRateLimiter.Decision locked = limiter.check(PLAYER_UUID, IP);
 
         assertEquals(VerifyRateLimiter.Status.RATE_LIMITED, limited.status());
         assertEquals(VerifyRateLimiter.Scope.PLAYER, limited.scope());
@@ -59,11 +59,11 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock, settings(true, false, 1, 300, true, 20, 300, 600, true, 60, 60));
 
-        limiter.recordFailure(PLAYER_KEY, "127.0.0.1");
-        VerifyRateLimiter.Decision secondFailure = limiter.recordFailure(PLAYER_KEY, "127.0.0.2");
+        limiter.recordFailure(PLAYER_UUID, "127.0.0.1");
+        VerifyRateLimiter.Decision secondFailure = limiter.recordFailure(PLAYER_UUID, "127.0.0.2");
 
         assertEquals(VerifyRateLimiter.Status.ALLOWED, secondFailure.status());
-        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_KEY, "127.0.0.2").status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_UUID, "127.0.0.2").status());
     }
 
     @Test
@@ -83,12 +83,12 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock, settings(true, false, 1, 300, false, 1, 300, 600, true, 60, 60));
 
-        limiter.recordFailure(PLAYER_KEY, IP);
-        limiter.recordFailure(PLAYER_KEY, IP);
-        VerifyRateLimiter.Decision thirdFailure = limiter.recordFailure(PLAYER_KEY, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        VerifyRateLimiter.Decision thirdFailure = limiter.recordFailure(PLAYER_UUID, IP);
 
         assertEquals(VerifyRateLimiter.Status.ALLOWED, thirdFailure.status());
-        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_KEY, IP).status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_UUID, IP).status());
     }
 
     @Test
@@ -96,7 +96,7 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock, settings(true, true, 1, 300, true, 1, 300, 600, true, 60, 60));
 
-        VerifyRateLimiter.Decision limited = limiter.recordFailure(PLAYER_KEY, IP);
+        VerifyRateLimiter.Decision limited = limiter.recordFailure(PLAYER_UUID, IP);
 
         assertEquals(VerifyRateLimiter.Status.RATE_LIMITED, limited.status());
         assertEquals(VerifyRateLimiter.Scope.PLAYER, limited.scope());
@@ -107,12 +107,12 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock);
 
-        limiter.recordFailure(PLAYER_KEY, IP);
-        limiter.recordFailure(PLAYER_KEY, IP);
-        limiter.reset(PLAYER_KEY, IP);
-        limiter.recordFailure(PLAYER_KEY, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        limiter.reset(PLAYER_UUID, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
 
-        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_KEY, IP).status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_UUID, IP).status());
     }
 
     @Test
@@ -120,14 +120,14 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock);
 
-        limiter.recordFailure(PLAYER_KEY, IP);
-        limiter.recordFailure(PLAYER_KEY, IP);
-        limiter.recordFailure(PLAYER_KEY, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
 
-        VerifyRateLimiter.Decision firstBlocked = limiter.check(PLAYER_KEY, IP);
-        VerifyRateLimiter.Decision secondBlocked = limiter.check(PLAYER_KEY, IP);
+        VerifyRateLimiter.Decision firstBlocked = limiter.check(PLAYER_UUID, IP);
+        VerifyRateLimiter.Decision secondBlocked = limiter.check(PLAYER_UUID, IP);
         clock.advanceSeconds(60);
-        VerifyRateLimiter.Decision thirdBlocked = limiter.check(PLAYER_KEY, IP);
+        VerifyRateLimiter.Decision thirdBlocked = limiter.check(PLAYER_UUID, IP);
 
         assertEquals(true, firstBlocked.shouldLogBlocked());
         assertEquals(false, secondBlocked.shouldLogBlocked());
@@ -139,10 +139,10 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock, settings(false, true, 1, 300, true, 1, 300, 600, true, 60, 60));
 
-        limiter.recordFailure(PLAYER_KEY, IP);
-        limiter.recordFailure(PLAYER_KEY, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
 
-        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_KEY, IP).status());
+        assertEquals(VerifyRateLimiter.Status.ALLOWED, limiter.check(PLAYER_UUID, IP).status());
     }
 
     @Test
@@ -150,10 +150,10 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock);
 
-        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
-        assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
+        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_UUID, IP));
+        assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_UUID, IP));
         clock.advanceSeconds(60);
-        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
+        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_UUID, IP));
     }
 
     @Test
@@ -161,10 +161,10 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock);
 
-        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
-        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.IP, PLAYER_KEY, IP));
-        assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP));
-        assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.IP, PLAYER_KEY, IP));
+        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_UUID, IP));
+        assertEquals(true, limiter.shouldNotify(VerifyRateLimiter.Scope.IP, PLAYER_UUID, IP));
+        assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_UUID, IP));
+        assertEquals(false, limiter.shouldNotify(VerifyRateLimiter.Scope.IP, PLAYER_UUID, IP));
     }
 
     @Test
@@ -172,8 +172,8 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock, settings(true, true, 10, 10, true, 10, 10, 600, true, 60, 10));
 
-        limiter.recordFailure(PLAYER_KEY, IP);
-        limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_KEY, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
+        limiter.shouldNotify(VerifyRateLimiter.Scope.PLAYER, PLAYER_UUID, IP);
         assertEquals(3, limiter.trackedEntryCount());
 
         clock.advanceSeconds(10);
@@ -187,7 +187,7 @@ class VerifyRateLimiterTest {
         MutableClock clock = new MutableClock();
         VerifyRateLimiter limiter = limiter(clock, settings(true, true, 1, 300, true, 20, 300, 10, true, 60, 60));
 
-        limiter.recordFailure(PLAYER_KEY, IP);
+        limiter.recordFailure(PLAYER_UUID, IP);
         assertEquals(1, limiter.trackedEntryCount());
 
         clock.advanceSeconds(10);

@@ -4,7 +4,7 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 
 /**
- * 对某个玩家标识校验邀请码后的结果
+ * 对某个玩家 UUID 校验邀请码后的结果
  *
  * @param status 校验结果, 命令层会据此选择语言文件 key
  * @param normalizedCode 校验成功后写入 MySQL 的标准化邀请码

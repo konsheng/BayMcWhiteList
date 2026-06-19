@@ -39,10 +39,10 @@ class WhitelistRepositoryTest {
      * 玩家名回查应保留普通索引可用的等值查询, 不在列上包 LOWER()
      */
     @Test
-    void findByNameQueryDoesNotWrapIndexedColumn() {
-        String sql = SqlTemplates.load("sql/repository.sql").render("find_by_name", tablePlaceholders());
+    void findByUuidQueryUsesIndexedColumn() {
+        String sql = SqlTemplates.load("sql/repository.sql").render("find_by_uuid", tablePlaceholders());
 
-        assertTrue(sql.contains("WHERE player_name = ?"));
+        assertTrue(sql.contains("WHERE player_uuid = ?"));
         assertFalse(sql.contains("LOWER("));
     }
 
@@ -57,6 +57,15 @@ class WhitelistRepositoryTest {
         assertFalse(sql.contains("code VARCHAR(" + StorageLimits.CODE + ") NOT NULL"));
     }
 
+    @Test
+    void schemaUsesPlayerUuidAsWhitelistPrimaryKey() {
+        String sql = SqlTemplates.load("sql/schema.sql").render("create_whitelist_players", schemaPlaceholders());
+
+        assertTrue(sql.contains("player_uuid VARCHAR(" + StorageLimits.PLAYER_UUID + ") NOT NULL"));
+        assertTrue(sql.contains("PRIMARY KEY (player_uuid)"));
+        assertFalse(sql.contains("id BIGINT PRIMARY KEY AUTO_INCREMENT"));
+    }
+
     /**
      * 手动添加 SQL 应显式写入空邀请码和空最后进入时间
      */
@@ -65,7 +74,7 @@ class WhitelistRepositoryTest {
         String sql = SqlTemplates.load("sql/repository.sql").render("insert_manual_player", tablePlaceholders());
 
         assertTrue(sql.contains("INSERT IGNORE INTO `players`"));
-        assertTrue(sql.contains("?, ?, ?, NULL, ?, ?, ?, NULL"));
+        assertTrue(sql.contains("?, ?, NULL, ?, ?, ?, NULL"));
     }
 
     /**
@@ -122,7 +131,6 @@ class WhitelistRepositoryTest {
         return Map.of(
                 "players_table", "`players`",
                 "logs_table", "`logs`",
-                "player_key_length", String.valueOf(StorageLimits.PLAYER_KEY),
                 "player_uuid_length", String.valueOf(StorageLimits.PLAYER_UUID),
                 "player_name_length", String.valueOf(StorageLimits.PLAYER_NAME),
                 "code_length", String.valueOf(StorageLimits.CODE),

@@ -50,18 +50,17 @@ public final class WhitelistLoginListener implements Listener {
             // 因此可以在这里完成白名单查询, 再把登录结果返回给 Paper/Folia
             PlayerIdentity identity = PlayerIdentity.fromPreLogin(
                     event.getUniqueId(),
-                    event.getName(),
-                    runtime.config().player().idType()
+                    event.getName()
             );
 
             try {
-                if (runtime.repository().isWhitelisted(identity.key())) {
-                    runtime.repository().updateLastSeen(identity.key(), now(runtime));
+                if (runtime.repository().isWhitelisted(identity.uuidText())) {
+                    runtime.repository().updateLastSeen(identity.uuidText(), now(runtime));
                     return;
                 }
 
                 runtime.repository().log(new WhitelistLogEntry(
-                        identity.key(),
+                        identity.uuidText(),
                         identity.name(),
                         "JOIN_DENIED_NOT_WHITELISTED",
                         null,

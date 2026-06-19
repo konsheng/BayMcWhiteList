@@ -6,8 +6,7 @@ import java.time.LocalDateTime;
 /**
  * 白名单玩家表中一行数据的快照
  *
- * @param playerKey 用于唯一白名单检查的标准玩家标识
- * @param playerUuid 可用时记录 UUID 文本, 玩家名模式下可能为空
+ * @param playerUuid 用于唯一白名单检查的玩家 UUID
  * @param playerName 最近一次记录的玩家名
  * @param code 创建或刷新该记录的邀请码
  * @param issueDate 邀请码校验匹配到的签发日期
@@ -16,7 +15,6 @@ import java.time.LocalDateTime;
  * @param lastSeenAt 最近一次受保护服务器登录检查时间
  */
 public record WhitelistRecord(
-        String playerKey,
         String playerUuid,
         String playerName,
         String code,

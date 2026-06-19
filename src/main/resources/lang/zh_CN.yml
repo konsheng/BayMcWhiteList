@@ -4,7 +4,7 @@ common:
   no-permission: "<prefix><red>⚠️ 权限不足, 你没有权限执行该命令</red>"
   only-player: "<prefix><red>❌ 该命令只能由游戏内玩家执行</red>"
   unknown-command: "<prefix><red>❓ 未知子命令, 请检查输入是否正确</red>"
-  invalid-player-identifier: "<prefix><red>⚠️ 玩家标识不合法! 请输入正确的玩家名或 UUID</red>"
+  invalid-player-identifier: "<prefix><red>⚠️ 玩家名或 UUID 不合法! 请输入正确的正版玩家名或标准 UUID</red>"
   missing-language-key: "<prefix><red>⚙️ 语言文件缺少节点: <white><key></white></red>"
 
 usage:
@@ -28,7 +28,6 @@ player:
   status-whitelisted:
     - "<prefix><green>📊 你已经通过白名单验证</green>"
     - " <dark_gray>▪</dark_gray> <gray>玩家: </gray><white><player></white>"
-    - " <dark_gray>▪</dark_gray> <gray>玩家标识: </gray><white><player_key></white>"
     - " <dark_gray>▪</dark_gray> <gray><gradient:#DDA0DD:#9370DB>UUID</gradient>: </gray><white><uuid></white>"
     - " <dark_gray>▪</dark_gray> <gray>使用邀码: </gray><yellow><code></yellow>"
     - " <dark_gray>▪</dark_gray> <gray>签发日期: </gray><white><issue_date></white>"
@@ -53,7 +52,6 @@ admin:
   add-lookup-failed: "<prefix><red>🚨 Mojang API 查询失败, 请稍后重试</red>"
   add-success:
     - "<prefix><green>🎉 已将玩家 <gold><player></gold> 添加到白名单</green>"
-    - " <dark_gray>▪</dark_gray> <gray>玩家标识: </gray><white><player_key></white>"
     - " <dark_gray>▪</dark_gray> <gray><gradient:#DDA0DD:#9370DB>UUID</gradient>: </gray><white><uuid></white>"
     - " <dark_gray>▪</dark_gray> <gray>添加方式: </gray><white>管理员手动添加</white>"
   generate-online-found: "<prefix><green>✅ 已识别在线玩家: <white><player></white> / <white><uuid></white></green>"
@@ -66,18 +64,17 @@ admin:
   generate-success:
     - "<prefix><green>🎉 已成功为玩家 <gold><player></gold> 生成邀请码</green>"
     - " <dark_gray>▪</dark_gray> <gray>核心验证码: </gray><yellow><bold><code></bold></yellow>"
-    - " <dark_gray>▪</dark_gray> <gray>玩家标识符: </gray><white><player_key></white>"
     - " <dark_gray>▪</dark_gray> <gray><gradient:#DDA0DD:#9370DB>UUID</gradient>: </gray><white><uuid></white>"
-    - " <dark_gray>▪</dark_gray> <gray>绑定模式: </gray><white><id_type></white>"
+    - " <dark_gray>▪</dark_gray> <gray>UUID 来源: </gray><white><uuid_source></white>"
     - " <dark_gray>▪</dark_gray> <gray>凭证有效期: </gray><white><expire_time></white>"
-  player-not-online-for-uuid-mode: "<prefix><red>⚠️ 当前处于 UUID 模式下, 因目标玩家不在线且输入的并非标准 UUID, 无法生成绑定邀请码</red>"
   remove-lookup-name-start: "<prefix><yellow>🔎 玩家 <white><player></white> 当前不在线, 正在查询 Mojang 正版档案...</yellow>"
   remove-name-not-found: "<prefix><red>❌ 未找到正版玩家 <white><player></white>, 无法移除白名单记录</red>"
   remove-lookup-failed: "<prefix><red>🚨 Mojang API 查询失败, 无法移除白名单记录, 请稍后重试</red>"
-  status-name-fallback: "<prefix><yellow>🔍 未按 UUID 检索到记录, 已自动切换为按玩家名 <white><player></white> 精确匹配</yellow>"
+  status-lookup-name-start: "<prefix><yellow>🔎 玩家 <white><player></white> 当前不在线, 正在查询 Mojang 正版档案...</yellow>"
+  status-name-not-found: "<prefix><red>❌ 未找到正版玩家 <white><player></white>, 无法查询白名单状态</red>"
+  status-lookup-failed: "<prefix><red>🚨 Mojang API 查询失败, 无法查询白名单状态, 请稍后重试</red>"
   status-whitelisted:
     - "<prefix><green>📊 档案查询: 玩家 <gold><player></gold> [已通过验证]</green>"
-    - " <dark_gray>▪</dark_gray> <gray>玩家标识: </gray><white><player_key></white>"
     - " <dark_gray>▪</dark_gray> <gray><gradient:#DDA0DD:#9370DB>UUID</gradient> 编码: </gray><white><uuid></white>"
     - " <dark_gray>▪</dark_gray> <gray>使用邀码: </gray><yellow><code></yellow>"
     - " <dark_gray>▪</dark_gray> <gray>签发日期: </gray><white><issue_date></white>"
@@ -106,7 +103,7 @@ admin:
     - "<prefix><bold><gradient:#00BFFF:#1E90FF>BayMc</gradient><gradient:#FFFFFF:#D3D3D3>WhiteList</gradient></bold> <gray>v<version></gray> <dark_gray>| 系统状态面板</dark_gray>"
     - " <dark_gray>▪</dark_gray> <gray>当前节点: </gray><white><server_name></white> <dark_gray>|</dark_gray> <gray>运行模式: </gray><aqua><server_mode></aqua>"
     - " <dark_gray>▪</dark_gray> <gray>邀码前缀: </gray><white><code_prefix></white> <dark_gray>|</dark_gray> <gray>有效时限: </gray><yellow><valid_days> 天</yellow>"
-    - " <dark_gray>▪</dark_gray> <gray>标识模式: </gray><gold><id_type></gold>"
+    - " <dark_gray>▪</dark_gray> <gray>UUID 来源: </gray><gold><uuid_source></gold>"
     - " <dark_gray>▪</dark_gray> <gray>数据库状态: </gray><white><database_status></white>"
 
 mysql:
@@ -136,7 +133,7 @@ security:
   notify-rate-limited:
     - "<prefix><red>安全警告: 邀请码验证触发限流</red>"
     - " <dark_gray>▪</dark_gray> <gray>玩家: </gray><white><player></white>"
-    - " <dark_gray>▪</dark_gray> <gray>玩家标识: </gray><white><player_key></white>"
+    - " <dark_gray>▪</dark_gray> <gray>UUID: </gray><white><uuid></white>"
     - " <dark_gray>▪</dark_gray> <gray>触发范围: </gray><white><scope></white>"
     - " <dark_gray>▪</dark_gray> <gray>IP: </gray><white><ip></white>"
     - " <dark_gray>▪</dark_gray> <gray>锁定剩余: </gray><white><remaining_seconds></white><gray> 秒</gray>"
@@ -146,8 +143,7 @@ state:
   database-unavailable: "<red>● 断开</red>"
   mode-login: "<aqua>登录服</aqua>"
   mode-protected: "<gold>受保护服务器</gold>"
-  id-type-uuid: "<bold><gradient:#DDA0DD:#9370DB>UUID</gradient></bold> <light_purple>模式</light_purple>"
-  id-type-name: "<yellow>玩家名模式</yellow>"
+  uuid-source-mojang: "<bold><gradient:#DDA0DD:#9370DB>Mojang UUID</gradient></bold>"
   none: "<gray>无</gray>"
 
 join:

@@ -89,10 +89,9 @@ final class CommandBoundaries {
     }
 
     /**
-     * 判断移除命令的目标输入在当前玩家标识模式下应如何处理
+     * 判断移除命令的目标输入应如何解析为白名单 UUID
      */
     static RemoveTargetDecision removeTargetDecision(
-            PluginConfig.PlayerIdType idType,
             boolean inputIsUuid,
             boolean validPlayerName,
             boolean targetOnline
@@ -102,9 +101,6 @@ final class CommandBoundaries {
         }
         if (!validPlayerName) {
             return RemoveTargetDecision.INVALID_IDENTIFIER;
-        }
-        if (idType == PluginConfig.PlayerIdType.NAME) {
-            return RemoveTargetDecision.NAME_MODE_NAME;
         }
         if (targetOnline) {
             return RemoveTargetDecision.ONLINE_UUID_NAME;
@@ -153,11 +149,9 @@ final class CommandBoundaries {
     enum RemoveTargetDecision {
         /** 输入本身就是标准 UUID */
         UUID_INPUT,
-        /** 玩家名模式下接受合法玩家名作为白名单键 */
-        NAME_MODE_NAME,
-        /** UUID 模式下目标玩家在线, 可以从在线实体解析 UUID */
+        /** 目标玩家在线, 可以从在线实体解析 UUID */
         ONLINE_UUID_NAME,
-        /** UUID 模式下离线正版玩家名需要通过 Mojang 档案解析 UUID */
+        /** 离线正版玩家名需要通过 Mojang 档案解析 UUID */
         UUID_MODE_OFFLINE_NAME_LOOKUP,
         /** 输入既不是 UUID, 也不是合法玩家名 */
         INVALID_IDENTIFIER

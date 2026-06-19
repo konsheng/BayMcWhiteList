@@ -33,6 +33,21 @@ class PluginConfigTest {
     }
 
     @Test
+    void defaultUuidSourceIsMojang() {
+        PluginConfig config = PluginConfig.load(new YamlConfiguration());
+
+        assertEquals(PluginConfig.UuidSource.MOJANG, config.player().uuidSource());
+    }
+
+    @Test
+    void rejectsUnsupportedUuidSource() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("player.uuid-source", "offline");
+
+        assertThrows(IllegalArgumentException.class, () -> PluginConfig.load(config));
+    }
+
+    @Test
     void rejectsSuffixLengthLongerThanHmacBase32Output() {
         YamlConfiguration config = new YamlConfiguration();
         config.set("code.suffix-length", 53);

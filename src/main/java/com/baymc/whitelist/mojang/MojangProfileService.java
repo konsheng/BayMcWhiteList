@@ -26,7 +26,7 @@ public final class MojangProfileService {
     private static final String UUID_LOOKUP_URL = "https://sessionserver.mojang.com/session/minecraft/profile/";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
     private static final Pattern DASHLESS_UUID_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
-    private static final Pattern PLAYER_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_]{1,32}");
+    private static final Pattern PLAYER_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_]{3,16}");
 
     private final ProfileTransport transport;
 

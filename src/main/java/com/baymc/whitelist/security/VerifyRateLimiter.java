@@ -31,7 +31,7 @@ public final class VerifyRateLimiter {
         return settings;
     }
 
-    public synchronized Decision check(String playerKey, String ip) {
+    public synchronized Decision check(String playerUuid, String ip) {
         if (!settings.enabled()) {
             return Decision.allowed();
         }
@@ -39,7 +39,7 @@ public final class VerifyRateLimiter {
         Instant now = clock.instant();
         pruneExpired(now);
         if (settings.playerEnabled()) {
-            Decision playerDecision = lockedDecision(playerBuckets.get(playerKey), Scope.PLAYER, now);
+            Decision playerDecision = lockedDecision(playerBuckets.get(playerUuid), Scope.PLAYER, now);
             if (playerDecision.status() == Status.LOCKED) {
                 return playerDecision;
             }
@@ -54,7 +54,7 @@ public final class VerifyRateLimiter {
         return Decision.allowed();
     }
 
-    public synchronized Decision recordFailure(String playerKey, String ip) {
+    public synchronized Decision recordFailure(String playerUuid, String ip) {
         if (!settings.enabled()) {
             return Decision.allowed();
         }
@@ -62,7 +62,7 @@ public final class VerifyRateLimiter {
         Instant now = clock.instant();
         pruneExpired(now);
         if (settings.playerEnabled()) {
-            boolean playerLimited = recordFailure(playerBuckets.computeIfAbsent(playerKey, key -> new Bucket(now)), now,
+            boolean playerLimited = recordFailure(playerBuckets.computeIfAbsent(playerUuid, key -> new Bucket(now)), now,
                     settings.playerWindowSeconds(), settings.maxFailuresPerPlayer());
             if (playerLimited) {
                 return Decision.rateLimited(Scope.PLAYER, settings.lockSeconds());
@@ -79,15 +79,15 @@ public final class VerifyRateLimiter {
         return Decision.allowed();
     }
 
-    public synchronized void reset(String playerKey, String ip) {
-        playerBuckets.remove(playerKey);
+    public synchronized void reset(String playerUuid, String ip) {
+        playerBuckets.remove(playerUuid);
         if (!isBlank(ip)) {
             ipBuckets.remove(ip);
         }
     }
 
-    public synchronized boolean shouldNotify(Scope scope, String playerKey, String ip) {
-        String key = notificationKey(scope, playerKey, ip);
+    public synchronized boolean shouldNotify(Scope scope, String playerUuid, String ip) {
+        String key = notificationKey(scope, playerUuid, ip);
         if (key == null) {
             return false;
         }
@@ -170,9 +170,9 @@ public final class VerifyRateLimiter {
         return value == null || value.isBlank();
     }
 
-    private static String notificationKey(Scope scope, String playerKey, String ip) {
+    private static String notificationKey(Scope scope, String playerUuid, String ip) {
         return switch (scope) {
-            case PLAYER -> isBlank(playerKey) ? null : "player:" + playerKey;
+            case PLAYER -> isBlank(playerUuid) ? null : "player:" + playerUuid;
             case IP -> isBlank(ip) ? null : "ip:" + ip;
         };
     }

@@ -204,12 +204,11 @@ class CommandBoundariesTest {
     }
 
     /**
-     * UUID 模式下离线正版玩家名应进入 Mojang 档案查询流程
+     * 离线正版玩家名应进入 Mojang 档案查询流程
      */
     @Test
     void uuidModeRemoveLooksUpOfflinePlayerName() {
         CommandBoundaries.RemoveTargetDecision decision = CommandBoundaries.removeTargetDecision(
-                PluginConfig.PlayerIdType.UUID,
                 false,
                 true,
                 false
@@ -219,33 +218,32 @@ class CommandBoundariesTest {
     }
 
     /**
-     * UUID 模式下移除命令接受直接 UUID 输入和在线玩家名
+     * 移除命令接受直接 UUID 输入和在线玩家名
      */
     @Test
     void uuidModeRemoveAcceptsUuidInputAndOnlineNames() {
         assertEquals(
                 CommandBoundaries.RemoveTargetDecision.UUID_INPUT,
-                CommandBoundaries.removeTargetDecision(PluginConfig.PlayerIdType.UUID, true, false, false)
+                CommandBoundaries.removeTargetDecision(true, false, false)
         );
         assertEquals(
                 CommandBoundaries.RemoveTargetDecision.ONLINE_UUID_NAME,
-                CommandBoundaries.removeTargetDecision(PluginConfig.PlayerIdType.UUID, false, true, true)
+                CommandBoundaries.removeTargetDecision(false, true, true)
         );
     }
 
     /**
-     * 玩家名模式下移除命令接受合法玩家名作为白名单键
+     * 非 UUID 且非合法玩家名的输入应被拒绝
      */
     @Test
-    void nameModeRemoveAcceptsValidPlayerName() {
+    void removeRejectsInvalidIdentifier() {
         CommandBoundaries.RemoveTargetDecision decision = CommandBoundaries.removeTargetDecision(
-                PluginConfig.PlayerIdType.NAME,
                 false,
-                true,
+                false,
                 false
         );
 
-        assertEquals(CommandBoundaries.RemoveTargetDecision.NAME_MODE_NAME, decision);
+        assertEquals(CommandBoundaries.RemoveTargetDecision.INVALID_IDENTIFIER, decision);
     }
 
     @Test

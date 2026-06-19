@@ -40,18 +40,18 @@ public final class InviteCodeService {
     }
 
     /**
-     * 为传入的标准玩家标识生成当天邀请码
+     * 为传入的标准玩家 UUID 生成当天邀请码
      */
-    public GeneratedCode generate(String playerKey) {
+    public GeneratedCode generate(String playerUuid) {
         LocalDate issueDate = LocalDate.now(clock);
-        String code = settings.prefix() + "-" + suffixFor(playerKey, issueDate);
+        String code = settings.prefix() + "-" + suffixFor(playerUuid, issueDate);
         return new GeneratedCode(code, issueDate, expiresAt(issueDate));
     }
 
     /**
-     * 根据执行命令的玩家标识校验提交的邀请码
+     * 根据执行命令的玩家 UUID 校验提交的邀请码
      */
-    public VerificationResult verify(String rawCode, String playerKey) {
+    public VerificationResult verify(String rawCode, String playerUuid) {
         String trimmed = rawCode == null ? "" : rawCode.trim();
         String expectedPrefix = settings.prefix();
         String comparableCode = settings.caseSensitive() ? trimmed : trimmed.toUpperCase(Locale.ROOT);
@@ -72,7 +72,7 @@ public final class InviteCodeService {
         LocalDate today = LocalDate.now(clock);
         for (int daysAgo = 0; daysAgo < settings.validDays(); daysAgo++) {
             LocalDate issueDate = today.minusDays(daysAgo);
-            String expectedSuffix = suffixFor(playerKey, issueDate);
+            String expectedSuffix = suffixFor(playerUuid, issueDate);
             if (constantTimeEquals(suffix, expectedSuffix)) {
                 return VerificationResult.valid(expectedPrefix + "-" + expectedSuffix, issueDate, expiresAt(issueDate));
             }
@@ -84,8 +84,8 @@ public final class InviteCodeService {
     /**
      * 为一组玩家, 日期和前缀构建签名后缀
      */
-    private String suffixFor(String playerKey, LocalDate issueDate) {
-        String payload = playerKey + ":" + issueDate + ":" + settings.prefix();
+    private String suffixFor(String playerUuid, LocalDate issueDate) {
+        String payload = playerUuid + ":" + issueDate + ":" + settings.prefix();
         byte[] digest = hmac(payload);
         return base32(digest).substring(0, settings.suffixLength());
     }

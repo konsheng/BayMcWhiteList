@@ -6,9 +6,7 @@ package com.baymc.whitelist.storage;
  * <p>建表语句和审计日志防御性截断共用这些常量, 避免表结构和写入边界分散在不同文件中
  */
 final class StorageLimits {
-    /** whitelist_players.player_key 和 whitelist_logs.player_key 的最大长度 */
-    static final int PLAYER_KEY = 64;
-    /** whitelist_players.player_uuid 的最大长度 */
+    /** whitelist_players.player_uuid 和 whitelist_logs.player_uuid 的最大长度 */
     static final int PLAYER_UUID = 36;
     /** 玩家名字段的最大长度, 与 Minecraft 玩家名边界保持一致 */
     static final int PLAYER_NAME = 32;
