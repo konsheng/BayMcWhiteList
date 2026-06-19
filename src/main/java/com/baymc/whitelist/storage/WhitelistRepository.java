@@ -13,12 +13,24 @@ import java.util.Optional;
 
 /**
  * 通过当前数据库后端读写白名单状态和审计日志
+ *
+ * <p>仓库层只接收已经解析好的玩家 UUID, 不负责按玩家名推断身份。
+ * 管理员命令和登录监听器必须在进入这里前完成 UUID 来源选择或 Mojang 档案解析。
+ *
+ * <p>所有外部文本在写入审计日志前会按 StorageLimits 截断,
+ * 避免超长邀请码, 玩家名或错误消息导致日志写入失败。
  */
 public final class WhitelistRepository {
     private final DatabaseManager database;
     private final String serverName;
     private final Map<String, String> sqlPlaceholders;
 
+    /**
+     * 创建绑定到指定数据库管理器和服务器名的仓库
+     *
+     * @param database 当前运行期数据库管理器
+     * @param serverName 写入白名单来源和审计日志的服务器名
+     */
     public WhitelistRepository(DatabaseManager database, String serverName) {
         this.database = database;
         this.serverName = serverName;
@@ -30,6 +42,10 @@ public final class WhitelistRepository {
 
     /**
      * 判断指定 UUID 是否已有白名单记录
+     *
+     * @param playerUuid 标准 UUID 文本
+     * @return 如果数据库中存在该 UUID 的白名单记录则返回 true
+     * @throws SQLException 当数据库查询失败时抛出
      */
     public boolean isWhitelisted(String playerUuid) throws SQLException {
         String sql = sql("is_whitelisted");
@@ -44,6 +60,12 @@ public final class WhitelistRepository {
 
     /**
      * 按白名单主键 UUID 查询完整记录
+     *
+     * <p>UUID 是白名单唯一键, 名称只作为展示字段和管理员确认信息
+     *
+     * @param playerUuid 标准 UUID 文本
+     * @return 查找到的白名单记录, 不存在时为空
+     * @throws SQLException 当数据库查询失败时抛出
      */
     public Optional<WhitelistRecord> findByUuid(String playerUuid) throws SQLException {
         String sql = sql("find_by_uuid");
@@ -58,6 +80,12 @@ public final class WhitelistRepository {
 
     /**
      * 邀请码验证成功后写入或刷新玩家白名单记录
+     *
+     * @param identity 已解析的玩家身份
+     * @param code 标准化邀请码
+     * @param issueDate 邀请码签发日期
+     * @param usedAt 验证成功时间
+     * @throws SQLException 当数据库写入失败时抛出
      */
     public void upsert(PlayerIdentity identity, String code, LocalDate issueDate, LocalDateTime usedAt) throws SQLException {
         String sql = sql("upsert_player");
@@ -77,6 +105,12 @@ public final class WhitelistRepository {
 
     /**
      * 管理员手动添加白名单记录, 已存在时返回 false
+     *
+     * @param identity 已解析的玩家身份
+     * @param issueDate 手动添加记录的日期
+     * @param usedAt 手动添加记录的时间
+     * @return 插入成功返回 true, 已存在返回 false
+     * @throws SQLException 当数据库写入失败时抛出
      */
     public boolean insertManual(PlayerIdentity identity, LocalDate issueDate, LocalDateTime usedAt) throws SQLException {
         String sql = sql("insert_manual_player");
@@ -94,6 +128,10 @@ public final class WhitelistRepository {
 
     /**
      * 按 UUID 删除白名单记录
+     *
+     * @param playerUuid 标准 UUID 文本
+     * @return 删除到记录时返回 true, 不存在时返回 false
+     * @throws SQLException 当数据库删除失败时抛出
      */
     public boolean removeByUuid(String playerUuid) throws SQLException {
         String sql = sql("remove_by_uuid");
@@ -106,6 +144,10 @@ public final class WhitelistRepository {
 
     /**
      * 受保护服务器放行玩家后刷新最后出现时间
+     *
+     * @param playerUuid 标准 UUID 文本
+     * @param lastSeenAt 本次放行时间
+     * @throws SQLException 当数据库更新失败时抛出
      */
     public void updateLastSeen(String playerUuid, LocalDateTime lastSeenAt) throws SQLException {
         String sql = sql("update_last_seen");
@@ -119,6 +161,9 @@ public final class WhitelistRepository {
 
     /**
      * 写入审计日志, 并在入库前按字段上限截断外部输入
+     *
+     * @param entry 审计日志条目
+     * @throws SQLException 当数据库写入失败时抛出
      */
     public void log(WhitelistLogEntry entry) throws SQLException {
         String sql = sql("insert_log");

@@ -26,6 +26,8 @@ public final class InviteCodeService {
 
     /**
      * 使用配置时区下的真实系统时钟创建服务
+     *
+     * @param settings 已校验的邀请码配置
      */
     public InviteCodeService(PluginConfig.CodeSettings settings) {
         this(settings, Clock.system(settings.zoneId()));
@@ -33,6 +35,9 @@ public final class InviteCodeService {
 
     /**
      * 使用注入时钟创建服务, 主要用于确定性测试
+     *
+     * @param settings 已校验的邀请码配置
+     * @param clock 生成和校验日期窗口使用的时钟
      */
     public InviteCodeService(PluginConfig.CodeSettings settings, Clock clock) {
         this.settings = settings;
@@ -41,6 +46,9 @@ public final class InviteCodeService {
 
     /**
      * 为传入的标准玩家 UUID 生成当天邀请码
+     *
+     * @param playerUuid 标准 UUID 文本, 会参与 HMAC 载荷计算
+     * @return 包含完整邀请码, 签发日期和过期时间的结果
      */
     public GeneratedCode generate(String playerUuid) {
         LocalDate issueDate = LocalDate.now(clock);
@@ -50,6 +58,10 @@ public final class InviteCodeService {
 
     /**
      * 根据执行命令的玩家 UUID 校验提交的邀请码
+     *
+     * @param rawCode 玩家提交的原始邀请码文本
+     * @param playerUuid 当前玩家的标准 UUID 文本
+     * @return 校验结果, 成功时包含标准化邀请码和匹配到的签发日期
      */
     public VerificationResult verify(String rawCode, String playerUuid) {
         String trimmed = rawCode == null ? "" : rawCode.trim();

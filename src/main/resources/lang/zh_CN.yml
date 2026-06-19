@@ -78,13 +78,15 @@ admin:
   server-source-offline-name-unsupported: "<prefix><red>❌ 当前 UUID 来源为 <white><uuid_source></white>, 离线玩家名无法解析, 请提供 UUID 或在线玩家名</red>"
   status-whitelisted:
     - "<prefix><green>📊 档案查询: 玩家 <gold><player></gold> [已通过验证]</green>"
+    - " <dark_gray>▪</dark_gray> <gray>查询输入: </gray><white><lookup_input></white>"
+    - " <dark_gray>▪</dark_gray> <gray>查询方式: </gray><white><lookup_type></white>"
     - " <dark_gray>▪</dark_gray> <gray><gradient:#DDA0DD:#9370DB>UUID</gradient> 编码: </gray><white><uuid></white>"
     - " <dark_gray>▪</dark_gray> <gray>使用邀码: </gray><yellow><code></yellow>"
     - " <dark_gray>▪</dark_gray> <gray>签发日期: </gray><white><issue_date></white>"
     - " <dark_gray>▪</dark_gray> <gray>验证时间: </gray><white><used_at></white>"
     - " <dark_gray>▪</dark_gray> <gray>来源节点: </gray><white><source_server></white>"
     - " <dark_gray>▪</dark_gray> <gray>最后活跃: </gray><white><last_seen_at></white>"
-  status-not-whitelisted: "<prefix><yellow>📊 档案查询: 玩家 <white><player></white> <red>[尚未通过验证]</red></yellow>"
+  status-not-whitelisted: "<prefix><yellow>📊 档案查询: <white><lookup_type></white> <white><lookup_input></white> <red>[尚未通过验证]</red></yellow>"
   remove-success: "<prefix><green>🗑️ 已成功移除玩家 <gold><player></gold> 的记录</green>"
   remove-success-kick-skipped-mode: "<prefix><green>🗑️ 已移除玩家 <gold><player></gold> 的白名单记录, 当前服务器模式 <white><server_mode></white> 未启用撤销踢出</green>"
   remove-success-kicked: "<prefix><green>🗑️ 已移除玩家 <gold><player></gold> 的白名单记录, 并踢出本服在线玩家</green>"
@@ -149,6 +151,8 @@ state:
   uuid-source-mojang: "<bold><gradient:#DDA0DD:#9370DB>Mojang UUID</gradient></bold>"
   uuid-source-offline-name: "<bold><gradient:#87CEEB:#32CD32>离线名 UUID</gradient></bold>"
   uuid-source-server: "<bold><gradient:#FFD700:#FF8C00>服务端 UUID</gradient></bold>"
+  lookup-uuid: "<gray>UUID 直接查询</gray>"
+  lookup-name: "<gray>名称解析为 UUID 后查询</gray>"
   none: "<gray>无</gray>"
 
 join:

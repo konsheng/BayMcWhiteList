@@ -10,9 +10,10 @@ val baseVersion = "1.0.0-SNAPSHOT"
 
 // 持续集成会传入该值, 让构建出的插件包在清单中记录来源提交
 val gitCommitShort = providers.gradleProperty("gitCommitShort").orElse("unknown")
+val artifactVersion = providers.gradleProperty("artifactVersionOverride").orElse(baseVersion).get()
 
 // 本地构建使用基础版本; 自动构建只覆盖构建产物版本号
-version = providers.gradleProperty("artifactVersionOverride").orElse(baseVersion).get()
+version = artifactVersion
 
 repositories {
     mavenCentral()
@@ -53,7 +54,7 @@ tasks.withType<Jar> {
     manifest {
         attributes(
             "Implementation-Title" to "BayMcWhiteList",
-            "Implementation-Version" to project.version,
+            "Implementation-Version" to artifactVersion,
             "Git-Commit-Short" to gitCommitShort.get(),
         )
     }
@@ -63,7 +64,7 @@ tasks.processResources {
     filteringCharset = "UTF-8"
     filesMatching("plugin.yml") {
         // plugin.yml 写入与插件包文件名一致的版本号
-        expand("version" to project.version)
+        expand("version" to artifactVersion)
     }
 }
 

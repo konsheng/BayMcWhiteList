@@ -107,6 +107,15 @@ class MojangProfileServiceTest {
         assertThrows(MojangProfileLookupException.class, () -> service.lookupByName("Notch"));
     }
 
+    @Test
+    void invalidLookupNameThrowsBeforeRequest() {
+        AtomicReference<URI> requestedUri = new AtomicReference<>();
+        MojangProfileService service = service(requestedUri, 200, profileJson("Notch", NOTCH_DASHLESS_UUID));
+
+        assertThrows(MojangProfileLookupException.class, () -> service.lookupByName("Bad-Name"));
+        assertEquals(null, requestedUri.get());
+    }
+
     private static MojangProfileService service(AtomicReference<URI> requestedUri, int statusCode, String body) {
         return new MojangProfileService(uri -> {
             requestedUri.set(uri);

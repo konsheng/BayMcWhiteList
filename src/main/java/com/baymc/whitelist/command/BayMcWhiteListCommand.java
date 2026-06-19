@@ -26,9 +26,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.logging.Level;
 
 /**
  * 处理 /baymcwhitelist 管理员命令
+ *
+ * <p>本类只把命令输入解析到明确的 PlayerIdentity 或 LookupTarget。
+ * 真正入库查询和删除始终按 UUID 执行, 避免玩家改名后按历史名称误删记录。
  */
 public final class BayMcWhiteListCommand implements TabExecutor {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -37,6 +41,8 @@ public final class BayMcWhiteListCommand implements TabExecutor {
 
     /**
      * 保存所有命令分支都会使用的插件门面对象
+     *
+     * @param plugin 当前插件实例
      */
     public BayMcWhiteListCommand(BayMcWhiteListPlugin plugin) {
         this.plugin = plugin;
@@ -44,6 +50,12 @@ public final class BayMcWhiteListCommand implements TabExecutor {
 
     /**
      * 分发管理员子命令, 并让权限失败提示走语言文件
+     *
+     * @param sender 命令发送者
+     * @param command Bukkit 命令对象
+     * @param label 管理员使用的命令标签
+     * @param args 命令参数
+     * @return Bukkit 命令处理结果, 始终返回 true 以使用语言文件提示
      */
     @Override
     public boolean onCommand(
@@ -81,6 +93,12 @@ public final class BayMcWhiteListCommand implements TabExecutor {
 
     /**
      * 为管理员命令提供子命令和在线玩家补全
+     *
+     * @param sender 命令发送者
+     * @param command Bukkit 命令对象
+     * @param label 管理员使用的命令标签
+     * @param args 当前参数
+     * @return 发送者有权限看到的补全结果
      */
     @Override
     public @Nullable List<String> onTabComplete(
@@ -187,8 +205,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 plugin.getLogger().warning("Failed to query Mojang profile: " + exception.getMessage());
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "admin.add-lookup-failed"));
             } catch (SQLException exception) {
-                plugin.getLogger().severe("Failed to manually add whitelist record.");
-                exception.printStackTrace();
+                plugin.getLogger().log(Level.SEVERE, "Failed to manually add whitelist record.", exception);
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "database.operation-failed"));
             } finally {
                 runtime.close();
@@ -292,17 +309,17 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 LookupResult result = findRecord(runtime, resolvedTarget);
                 runtime.scheduler().runForSender(sender, () -> {
                     if (result.record().isPresent()) {
-                        sendStatus(runtime, sender, result.record().get());
+                        sendStatus(runtime, sender, result.record().get(), resolvedTarget);
                     } else {
-                        runtime.lang().send(sender, "admin.status-not-whitelisted", Map.of("player", resolvedTarget.input()));
+                        runtime.lang().send(sender, "admin.status-not-whitelisted",
+                                statusLookupPlaceholders(runtime, resolvedTarget));
                     }
                 });
             } catch (MojangProfileLookupException exception) {
                 plugin.getLogger().warning("Failed to query Mojang profile for whitelist status: " + exception.getMessage());
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "admin.status-lookup-failed"));
             } catch (SQLException exception) {
-                plugin.getLogger().severe("Failed to query whitelist status.");
-                exception.printStackTrace();
+                plugin.getLogger().log(Level.SEVERE, "Failed to query whitelist status.", exception);
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "database.operation-failed"));
             } finally {
                 runtime.close();
@@ -371,8 +388,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 plugin.getLogger().warning("Failed to query Mojang profile for whitelist removal: " + exception.getMessage());
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "admin.remove-lookup-failed"));
             } catch (SQLException exception) {
-                plugin.getLogger().severe("Failed to remove whitelist record.");
-                exception.printStackTrace();
+                plugin.getLogger().log(Level.SEVERE, "Failed to remove whitelist record.", exception);
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(sender, "database.operation-failed"));
             } finally {
                 runtime.close();
@@ -636,6 +652,9 @@ public final class BayMcWhiteListCommand implements TabExecutor {
 
     /**
      * 为状态命令按当前 UUID 来源解析查询目标
+     *
+     * <p>状态查询允许名称解析, 但进入仓库前仍会落到一个明确 UUID。
+     * server UUID 模式下离线名称无法安全推断, 因此会被拒绝
      */
     private LookupTarget resolveStatusTarget(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String input) {
         TargetInput targetInput = parseTargetInput(runtime, sender, input);
@@ -675,6 +694,9 @@ public final class BayMcWhiteListCommand implements TabExecutor {
 
     /**
      * 按当前 UUID 来源解析移除目标
+     *
+     * <p>移除命令最终只删除解析出的 UUID 记录。
+     * Mojang 模式的离线名称会先查正版档案, offline-name 模式才按离线名算法本地计算 UUID
      */
     private LookupTarget resolveRemoveTarget(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String input) {
         TargetInput targetInput = parseTargetInput(runtime, sender, input);
@@ -841,16 +863,41 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     /**
      * 为一条已存储记录发送完整管理员状态视图
      */
-    private void sendStatus(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, WhitelistRecord record) {
+    private void sendStatus(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender,
+            WhitelistRecord record,
+            LookupTarget target
+    ) {
         runtime.lang().send(sender, "admin.status-whitelisted", Map.of(
                 "player", value(runtime, record.playerName()),
                 "uuid", value(runtime, record.playerUuid()),
+                "lookup_input", value(runtime, target.input()),
+                "lookup_type", statusLookupType(runtime, target),
                 "code", value(runtime, record.code()),
                 "issue_date", value(runtime, record.issueDate()),
                 "used_at", format(runtime, record.usedAt()),
                 "source_server", value(runtime, record.sourceServer()),
                 "last_seen_at", format(runtime, record.lastSeenAt())
         ));
+    }
+
+    private String statusLookupType(BayMcWhiteListPlugin.RuntimeState runtime, LookupTarget target) {
+        return state(
+                runtime,
+                parseUuid(target.input()).isPresent() ? "state.lookup-uuid" : "state.lookup-name"
+        );
+    }
+
+    private Map<String, String> statusLookupPlaceholders(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            LookupTarget target
+    ) {
+        return Map.of(
+                "player", value(runtime, target.input()),
+                "lookup_input", value(runtime, target.input()),
+                "lookup_type", statusLookupType(runtime, target)
+        );
     }
 
     /**

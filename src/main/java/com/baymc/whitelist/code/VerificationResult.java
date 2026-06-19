@@ -19,6 +19,8 @@ public record VerificationResult(
 ) {
     /**
      * 创建前缀或 Base32 格式不匹配的结果
+     *
+     * @return 格式无效的校验结果
      */
     public static VerificationResult invalidFormat() {
         return new VerificationResult(Status.INVALID_FORMAT, null, null, null);
@@ -26,6 +28,8 @@ public record VerificationResult(
 
     /**
      * 创建格式正确但不匹配任何有效签发日期的结果
+     *
+     * @return 签名无效或已过期的校验结果
      */
     public static VerificationResult invalidOrExpired() {
         return new VerificationResult(Status.INVALID_OR_EXPIRED, null, null, null);
@@ -33,6 +37,11 @@ public record VerificationResult(
 
     /**
      * 创建包含标准化邀请码和匹配日期窗口的成功结果
+     *
+     * @param normalizedCode 写入审计日志和数据库的标准化邀请码
+     * @param issueDate 邀请码匹配到的签发日期
+     * @param expiresAt 邀请码对应的过期时间
+     * @return 有效邀请码校验结果
      */
     public static VerificationResult valid(String normalizedCode, LocalDate issueDate, ZonedDateTime expiresAt) {
         return new VerificationResult(Status.VALID, normalizedCode, issueDate, expiresAt);

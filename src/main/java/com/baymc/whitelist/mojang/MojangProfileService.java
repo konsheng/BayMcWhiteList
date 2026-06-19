@@ -20,6 +20,9 @@ import java.util.regex.Pattern;
 
 /**
  * 通过 Mojang / Minecraft Services API 查询正版玩家档案
+ *
+ * <p>外部响应只在通过 UUID 格式和玩家名格式校验后才会返回给命令层。
+ * 查询失败和响应格式异常会转为 MojangProfileLookupException, 由命令层给管理员明确反馈。
  */
 public final class MojangProfileService {
     private static final String NAME_LOOKUP_URL = "https://api.minecraftservices.com/minecraft/profile/lookup/name/";
@@ -46,14 +49,25 @@ public final class MojangProfileService {
 
     /**
      * 按当前正版玩家名查询 UUID 和规范玩家名
+     *
+     * @param playerName 需要查询的正版玩家名
+     * @return 查询到的 Mojang 档案, 玩家不存在时为空
+     * @throws MojangProfileLookupException 当网络请求, 状态码或响应解析失败时抛出
      */
     public Optional<MojangProfile> lookupByName(String playerName) throws MojangProfileLookupException {
+        if (playerName == null || !PLAYER_NAME_PATTERN.matcher(playerName).matches()) {
+            throw new MojangProfileLookupException("Mojang profile lookup name is invalid");
+        }
         String encodedName = URLEncoder.encode(playerName, StandardCharsets.UTF_8).replace("+", "%20");
         return requestProfile(URI.create(NAME_LOOKUP_URL + encodedName), Optional.empty());
     }
 
     /**
      * 按 UUID 校验 Mojang 档案是否存在, 并返回对应规范玩家名
+     *
+     * @param uuid 需要查询的正版 UUID
+     * @return 查询到且 UUID 匹配的 Mojang 档案, 不存在或不匹配时为空
+     * @throws MojangProfileLookupException 当网络请求, 状态码或响应解析失败时抛出
      */
     public Optional<MojangProfile> lookupByUuid(UUID uuid) throws MojangProfileLookupException {
         return requestProfile(URI.create(UUID_LOOKUP_URL + withoutDashes(uuid)), Optional.of(uuid));
@@ -143,6 +157,9 @@ public final class MojangProfileService {
     }
 
     private record JavaNetProfileTransport(HttpClient client) implements ProfileTransport {
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public ProfileResponse get(URI uri) throws IOException, InterruptedException {
             HttpRequest request = HttpRequest.newBuilder(uri)

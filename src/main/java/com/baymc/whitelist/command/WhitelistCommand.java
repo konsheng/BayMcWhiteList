@@ -24,19 +24,37 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.logging.Level;
 
 /**
  * 处理玩家侧 /whitelist 邀请码验证和自助状态查询命令
+ *
+ * <p>玩家命令只接受游戏内玩家执行。无参数时查询自己的白名单状态,
+ * 单参数时只允许在 login 模式提交邀请码并写入当前数据库后端。
  */
 public final class WhitelistCommand implements TabExecutor {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final BayMcWhiteListPlugin plugin;
 
+    /**
+     * 创建玩家侧白名单命令处理器
+     *
+     * @param plugin 当前插件实例
+     */
     public WhitelistCommand(BayMcWhiteListPlugin plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * 分发玩家侧状态查询或邀请码验证请求
+     *
+     * @param sender 命令发送者
+     * @param command Bukkit 命令对象
+     * @param label 玩家使用的命令标签
+     * @param args 命令参数
+     * @return Bukkit 命令处理结果, 始终返回 true 以使用语言文件提示
+     */
     @Override
     public boolean onCommand(
             @NotNull CommandSender sender,
@@ -68,6 +86,8 @@ public final class WhitelistCommand implements TabExecutor {
                 return true;
             }
 
+            // 玩家侧命令只信任服务端当前玩家实体提供的名称和 UUID
+            // 具体使用正版 UUID, 离线名 UUID 还是服务端 UUID 由配置快照决定
             PlayerIdentity identity = PlayerIdentityResolver.fromPlayer(
                     player,
                     runtime.config().player().uuidSource()
@@ -107,6 +127,15 @@ public final class WhitelistCommand implements TabExecutor {
         }
     }
 
+    /**
+     * 玩家命令当前不提供补全
+     *
+     * @param sender 命令发送者
+     * @param command Bukkit 命令对象
+     * @param label 玩家使用的命令标签
+     * @param args 当前参数
+     * @return 空补全列表
+     */
     @Override
     public @Nullable List<String> onTabComplete(
             @NotNull CommandSender sender,
@@ -134,8 +163,7 @@ public final class WhitelistCommand implements TabExecutor {
                         selfStatusPlaceholders(runtime, identity, null));
             });
         } catch (SQLException exception) {
-            plugin.getLogger().severe("Failed to query whitelist self status for " + identity.name() + ".");
-            exception.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Failed to query whitelist self status for " + identity.name() + ".", exception);
             runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "database.operation-failed"));
         }
     }
@@ -227,8 +255,7 @@ public final class WhitelistCommand implements TabExecutor {
 
             runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "code.success"));
         } catch (SQLException exception) {
-            plugin.getLogger().severe("Failed to verify whitelist code for " + identity.name() + ".");
-            exception.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Failed to verify whitelist code for " + identity.name() + ".", exception);
             runtime.scheduler().runForPlayer(player, () -> runtime.lang().send(player, "database.operation-failed"));
         }
     }

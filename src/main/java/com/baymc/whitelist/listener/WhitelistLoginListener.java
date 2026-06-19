@@ -15,6 +15,7 @@ import java.net.InetAddress;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.logging.Level;
 
 /**
  * 在玩家加入受保护服务器前强制检查数据库白名单状态
@@ -24,6 +25,8 @@ public final class WhitelistLoginListener implements Listener {
 
     /**
      * 保存预登录检查过程中使用的插件门面对象
+     *
+     * @param plugin 当前插件实例
      */
     public WhitelistLoginListener(BayMcWhiteListPlugin plugin) {
         this.plugin = plugin;
@@ -31,6 +34,8 @@ public final class WhitelistLoginListener implements Listener {
 
     /**
      * 在异步预登录阶段拒绝受保护服务器上的未过白玩家
+     *
+     * @param event Paper/Folia 预登录事件
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPreLogin(AsyncPlayerPreLoginEvent event) {
@@ -73,8 +78,7 @@ public final class WhitelistLoginListener implements Listener {
                 ));
                 disallow(runtime, event, "join.not-whitelisted");
             } catch (SQLException exception) {
-                plugin.getLogger().severe("Failed to check whitelist status for " + event.getName() + ".");
-                exception.printStackTrace();
+                plugin.getLogger().log(Level.SEVERE, "Failed to check whitelist status for " + event.getName() + ".", exception);
                 disallow(runtime, event, "join.database-unavailable");
             }
         }

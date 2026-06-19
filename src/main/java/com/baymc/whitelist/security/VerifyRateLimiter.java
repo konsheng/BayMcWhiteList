@@ -20,6 +20,8 @@ public final class VerifyRateLimiter {
 
     /**
      * 使用真实 UTC 时钟创建限流器
+     *
+     * @param settings 已校验的限流配置
      */
     public VerifyRateLimiter(PluginConfig.VerifyRateLimitSettings settings) {
         this(settings, Clock.systemUTC());
@@ -27,6 +29,9 @@ public final class VerifyRateLimiter {
 
     /**
      * 使用指定时钟创建限流器, 便于测试窗口和锁定时间
+     *
+     * @param settings 已校验的限流配置
+     * @param clock 统计窗口和锁定时间使用的时钟
      */
     public VerifyRateLimiter(PluginConfig.VerifyRateLimitSettings settings, Clock clock) {
         this.settings = settings;
@@ -35,6 +40,8 @@ public final class VerifyRateLimiter {
 
     /**
      * 返回当前不可变限流配置
+     *
+     * @return 当前限流配置快照
      */
     public PluginConfig.VerifyRateLimitSettings settings() {
         return settings;
@@ -42,6 +49,10 @@ public final class VerifyRateLimiter {
 
     /**
      * 检查玩家或 IP 当前是否仍处于锁定期
+     *
+     * @param playerUuid 当前玩家 UUID
+     * @param ip 当前玩家来源 IP, 不可用时可以为空
+     * @return 当前是否允许继续验证的决策
      */
     public synchronized Decision check(String playerUuid, String ip) {
         if (!settings.enabled()) {
@@ -68,6 +79,10 @@ public final class VerifyRateLimiter {
 
     /**
      * 记录一次验证失败, 并在达到阈值时返回触发限流的维度
+     *
+     * @param playerUuid 当前玩家 UUID
+     * @param ip 当前玩家来源 IP, 不可用时可以为空
+     * @return 记录失败后的限流决策
      */
     public synchronized Decision recordFailure(String playerUuid, String ip) {
         if (!settings.enabled()) {
@@ -96,6 +111,9 @@ public final class VerifyRateLimiter {
 
     /**
      * 验证成功后清理玩家和 IP 的失败计数
+     *
+     * @param playerUuid 当前玩家 UUID
+     * @param ip 当前玩家来源 IP, 不可用时可以为空
      */
     public synchronized void reset(String playerUuid, String ip) {
         playerBuckets.remove(playerUuid);
@@ -106,6 +124,11 @@ public final class VerifyRateLimiter {
 
     /**
      * 判断当前维度是否已经超过安全通知的最短间隔
+     *
+     * @param scope 触发通知的统计维度
+     * @param playerUuid 当前玩家 UUID
+     * @param ip 当前玩家来源 IP, 不可用时可以为空
+     * @return 如果本次可以发送通知则返回 true
      */
     public synchronized boolean shouldNotify(Scope scope, String playerUuid, String ip) {
         String key = notificationKey(scope, playerUuid, ip);
@@ -225,8 +248,18 @@ public final class VerifyRateLimiter {
 
     /**
      * 返回给命令层的限流决策, 包含剩余秒数和本次是否需要写 blocked 日志
+     *
+     * @param status 总体限流状态
+     * @param scope 触发限流或锁定的维度, 允许状态下为空
+     * @param remainingSeconds 锁定剩余秒数
+     * @param shouldLogBlocked 本次锁定中重复尝试是否需要写审计日志
      */
     public record Decision(Status status, Scope scope, long remainingSeconds, boolean shouldLogBlocked) {
+        /**
+         * 创建允许继续验证的决策
+         *
+         * @return 允许状态的决策对象
+         */
         public static Decision allowed() {
             return new Decision(Status.ALLOWED, null, 0L, false);
         }

@@ -95,6 +95,8 @@ final class CommandTestSupport {
         when(lang.plain("state.mode-protected")).thenReturn("protected");
         when(lang.plain("state.database-ready")).thenReturn("ready");
         when(lang.plain("state.database-unavailable")).thenReturn("unavailable");
+        when(lang.plain("state.lookup-uuid")).thenReturn("uuid lookup");
+        when(lang.plain("state.lookup-name")).thenReturn("name lookup");
         when(lang.plain("security.scope-player")).thenReturn("player");
         when(lang.plain("security.scope-ip")).thenReturn("ip");
 

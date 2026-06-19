@@ -186,6 +186,22 @@ class PluginConfigTest {
     }
 
     @Test
+    void rejectsScalarRemoveKickServerModes() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("remove.kick-server-modes", "protected");
+
+        assertThrows(IllegalArgumentException.class, () -> PluginConfig.load(config));
+    }
+
+    @Test
+    void rejectsNonStringRemoveKickServerModeEntry() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("remove.kick-server-modes", List.of(1));
+
+        assertThrows(IllegalArgumentException.class, () -> PluginConfig.load(config));
+    }
+
+    @Test
     void defaultVerifyRateLimitSettingsLoad() {
         PluginConfig.VerifyRateLimitSettings settings = PluginConfig.load(new YamlConfiguration())
                 .security()
@@ -314,6 +330,20 @@ class PluginConfigTest {
         assertThrows(IllegalArgumentException.class, () -> PluginConfig.load(config));
     }
 
+    @Test
+    void rejectsWrongScalarTypesInsteadOfUsingDefaults() {
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithValue("code.suffix-length", "8"));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithValue("storage.mysql.port", "3306"));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithValue("remove.kick-online-player", "true"));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithValue("storage.mysql.use-ssl", "false"));
+        assertThrows(IllegalArgumentException.class, () ->
+                loadWithValue("server.name", 123));
+    }
+
     private static PluginConfig loadWithMysqlHost(String host) {
         YamlConfiguration config = new YamlConfiguration();
         config.set("storage.mysql.host", host);
@@ -327,6 +357,12 @@ class PluginConfigTest {
     }
 
     private static PluginConfig loadWithSecurityText(String path, String value) {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set(path, value);
+        return PluginConfig.load(config);
+    }
+
+    private static PluginConfig loadWithValue(String path, Object value) {
         YamlConfiguration config = new YamlConfiguration();
         config.set(path, value);
         return PluginConfig.load(config);

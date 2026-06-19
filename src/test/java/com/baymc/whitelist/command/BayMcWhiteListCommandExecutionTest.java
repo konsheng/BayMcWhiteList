@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -192,6 +193,32 @@ class BayMcWhiteListCommandExecutionTest {
         verify(runtime.mojangProfileService()).lookupByName("Notch");
         verify(runtime.repository()).findByUuid(CommandTestSupport.PLAYER_UUID_TEXT);
         verify(runtime.lang()).send(eq(sender), eq("admin.status-not-whitelisted"), anyMap());
+    }
+
+    @Test
+    void statusNameResultMarksNameLookup() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.LOGIN),
+                true
+        );
+        when(runtime.mojangProfileService().lookupByName("Notch"))
+                .thenReturn(Optional.of(profile()));
+        when(runtime.repository().findByUuid(CommandTestSupport.PLAYER_UUID_TEXT))
+                .thenReturn(Optional.of(record()));
+        BayMcWhiteListCommand command = new BayMcWhiteListCommand(runtime.plugin());
+        CommandSender sender = CommandTestSupport.sender("Admin", Set.of("baymcwhitelist.status"));
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayerExact("Notch")).thenReturn(null);
+
+            command.onCommand(sender, CommandTestSupport.command(), "wl", new String[]{"status", "Notch"});
+        }
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> placeholders = ArgumentCaptor.forClass(Map.class);
+        verify(runtime.lang()).send(eq(sender), eq("admin.status-whitelisted"), placeholders.capture());
+        assertEquals("Notch", placeholders.getValue().get("lookup_input"));
+        assertEquals("name lookup", placeholders.getValue().get("lookup_type"));
     }
 
     @Test

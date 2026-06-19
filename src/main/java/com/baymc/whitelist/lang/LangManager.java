@@ -30,6 +30,8 @@ public final class LangManager {
 
     /**
      * 保存插件实例, 用于从插件数据目录中解析语言文件
+     *
+     * @param plugin 当前插件实例
      */
     public LangManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -37,6 +39,9 @@ public final class LangManager {
 
     /**
      * 从 plugins/BayMcWhiteList/lang 重新加载指定语言文件
+     *
+     * @param languageFileName 配置中指定的语言文件名
+     * @throws IllegalArgumentException 当语言文件不存在或无法解析时抛出
      */
     public void reload(String languageFileName) {
         File file = new File(plugin.getDataFolder(), "lang/" + languageFileName);
@@ -59,6 +64,9 @@ public final class LangManager {
 
     /**
      * 发送不带占位符的语言键
+     *
+     * @param sender 消息接收者
+     * @param key 语言文件中的节点路径
      */
     public void send(CommandSender sender, String key) {
         send(sender, key, Map.of());
@@ -66,6 +74,10 @@ public final class LangManager {
 
     /**
      * 发送某个语言键对应的所有行
+     *
+     * @param sender 消息接收者
+     * @param key 语言文件中的节点路径
+     * @param placeholders MiniMessage 占位符值
      */
     public void send(CommandSender sender, String key, Map<String, String> placeholders) {
         for (Component component : components(key, placeholders)) {
@@ -75,6 +87,9 @@ public final class LangManager {
 
     /**
      * 解析不带占位符的单个组件
+     *
+     * @param key 语言文件中的节点路径
+     * @return 解析后的第一个组件, 缺失时返回兜底组件
      */
     public Component component(String key) {
         return component(key, Map.of());
@@ -82,6 +97,10 @@ public final class LangManager {
 
     /**
      * 解析某个语言键的第一个组件
+     *
+     * @param key 语言文件中的节点路径
+     * @param placeholders MiniMessage 占位符值
+     * @return 解析后的第一个组件, 空列表时返回空组件
      */
     public Component component(String key, Map<String, String> placeholders) {
         List<Component> components = components(key, placeholders);
@@ -93,6 +112,10 @@ public final class LangManager {
 
     /**
      * 将多行语言键合并为一个用换行分隔的组件
+     *
+     * @param key 语言文件中的节点路径
+     * @param placeholders MiniMessage 占位符值
+     * @return 合并后的组件
      */
     public Component joined(String key, Map<String, String> placeholders) {
         List<Component> components = components(key, placeholders);
@@ -108,6 +131,9 @@ public final class LangManager {
 
     /**
      * 将语言键转为纯文本, 便于嵌入其他消息
+     *
+     * @param key 语言文件中的节点路径
+     * @return 去除 MiniMessage 样式后的纯文本
      */
     public String plain(String key) {
         return PlainTextComponentSerializer.plainText().serialize(component(key));
@@ -115,6 +141,10 @@ public final class LangManager {
 
     /**
      * 将字符串节点或字符串列表节点解析为 MiniMessage 组件
+     *
+     * @param key 语言文件中的节点路径
+     * @param placeholders MiniMessage 占位符值
+     * @return 解析后的组件列表
      */
     public List<Component> components(String key, Map<String, String> placeholders) {
         if (language == null) {
