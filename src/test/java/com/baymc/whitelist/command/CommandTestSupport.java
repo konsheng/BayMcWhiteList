@@ -39,10 +39,19 @@ final class CommandTestSupport {
     }
 
     static PluginConfig config(PluginConfig.ServerMode mode, boolean kickOnlinePlayer) {
+        return config(mode, kickOnlinePlayer, PluginConfig.UuidSource.MOJANG);
+    }
+
+    static PluginConfig config(
+            PluginConfig.ServerMode mode,
+            boolean kickOnlinePlayer,
+            PluginConfig.UuidSource uuidSource
+    ) {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("server.mode", mode.name().toLowerCase());
         yaml.set("code.secret", "unit-test-secret-with-enough-length");
         yaml.set("remove.kick-online-player", kickOnlinePlayer);
+        yaml.set("player.uuid-source", uuidSource.name().toLowerCase().replace('_', '-'));
         return PluginConfig.load(yaml);
     }
 
@@ -77,6 +86,8 @@ final class CommandTestSupport {
 
         when(lang.plain("state.none")).thenReturn("none");
         when(lang.plain("state.uuid-source-mojang")).thenReturn("Mojang UUID");
+        when(lang.plain("state.uuid-source-offline-name")).thenReturn("Offline Name UUID");
+        when(lang.plain("state.uuid-source-server")).thenReturn("Server UUID");
         when(lang.plain("state.mode-login")).thenReturn("login");
         when(lang.plain("state.mode-protected")).thenReturn("protected");
         when(lang.plain("state.database-ready")).thenReturn("ready");

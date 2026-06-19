@@ -3,6 +3,7 @@ package com.baymc.whitelist.listener;
 import com.baymc.whitelist.BayMcWhiteListPlugin;
 import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.identity.PlayerIdentity;
+import com.baymc.whitelist.identity.PlayerIdentityResolver;
 import com.baymc.whitelist.storage.WhitelistLogEntry;
 import net.kyori.adventure.text.Component;
 import org.bukkit.event.EventHandler;
@@ -48,9 +49,10 @@ public final class WhitelistLoginListener implements Listener {
 
             // AsyncPlayerPreLoginEvent 本身已在主线程/区域线程之外运行
             // 因此可以在这里完成白名单查询, 再把登录结果返回给 Paper/Folia
-            PlayerIdentity identity = PlayerIdentity.fromPreLogin(
+            PlayerIdentity identity = PlayerIdentityResolver.fromPreLogin(
                     event.getUniqueId(),
-                    event.getName()
+                    event.getName(),
+                    runtime.config().player().uuidSource()
             );
 
             try {

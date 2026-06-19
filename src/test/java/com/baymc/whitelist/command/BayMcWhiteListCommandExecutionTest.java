@@ -3,6 +3,7 @@ package com.baymc.whitelist.command;
 import com.baymc.whitelist.code.GeneratedCode;
 import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.identity.PlayerIdentity;
+import com.baymc.whitelist.identity.PlayerIdentityResolver;
 import com.baymc.whitelist.mojang.MojangProfile;
 import com.baymc.whitelist.storage.WhitelistRecord;
 import org.bukkit.Bukkit;
@@ -26,10 +27,13 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class BayMcWhiteListCommandExecutionTest {
@@ -211,6 +215,117 @@ class BayMcWhiteListCommandExecutionTest {
         verify(runtime.repository()).findByUuid(CommandTestSupport.PLAYER_UUID_TEXT);
         verify(runtime.repository()).removeByUuid(CommandTestSupport.PLAYER_UUID_TEXT);
         verify(runtime.lang()).send(eq(sender), eq("admin.remove-success"), anyMap());
+    }
+
+    @Test
+    void addOfflineNameComputesUuidWithoutMojangLookup() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(
+                        PluginConfig.ServerMode.LOGIN,
+                        true,
+                        PluginConfig.UuidSource.OFFLINE_NAME
+                ),
+                true
+        );
+        String offlineUuid = PlayerIdentityResolver.offlineNameUuid("Notch").toString();
+        when(runtime.repository().isWhitelisted(offlineUuid)).thenReturn(false);
+        when(runtime.repository().insertManual(any(PlayerIdentity.class), any(LocalDate.class), any(LocalDateTime.class)))
+                .thenReturn(true);
+        BayMcWhiteListCommand command = new BayMcWhiteListCommand(runtime.plugin());
+        CommandSender sender = CommandTestSupport.sender("Admin", Set.of("baymcwhitelist.add"));
+
+        command.onCommand(sender, CommandTestSupport.command(), "wl", new String[]{"add", "Notch"});
+
+        verifyNoInteractions(runtime.mojangProfileService());
+        ArgumentCaptor<PlayerIdentity> identity = ArgumentCaptor.forClass(PlayerIdentity.class);
+        verify(runtime.repository()).insertManual(identity.capture(), any(LocalDate.class), any(LocalDateTime.class));
+        assertEquals(offlineUuid, identity.getValue().uuidText());
+        assertEquals("Notch", identity.getValue().name());
+    }
+
+    @Test
+    void generateOfflineNameSignsComputedUuid() {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(
+                        PluginConfig.ServerMode.LOGIN,
+                        true,
+                        PluginConfig.UuidSource.OFFLINE_NAME
+                ),
+                true
+        );
+        String offlineUuid = PlayerIdentityResolver.offlineNameUuid("Notch").toString();
+        when(runtime.inviteCodeService().generate(offlineUuid))
+                .thenReturn(new GeneratedCode(
+                        "BAYMC-ABCDEFGH",
+                        LocalDate.parse("2026-06-19"),
+                        ZonedDateTime.of(2026, 6, 25, 23, 59, 59, 0, ZoneId.of("Asia/Shanghai"))
+                ));
+        BayMcWhiteListCommand command = new BayMcWhiteListCommand(runtime.plugin());
+        CommandSender sender = CommandTestSupport.sender("Admin", Set.of("baymcwhitelist.generate"));
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayerExact("Notch")).thenReturn(null);
+
+            command.onCommand(sender, CommandTestSupport.command(), "wl", new String[]{"generate", "Notch"});
+        }
+
+        verifyNoInteractions(runtime.mojangProfileService());
+        verify(runtime.inviteCodeService()).generate(offlineUuid);
+        verify(runtime.lang()).send(eq(sender), eq("admin.generate-identity-resolved"), anyMap());
+    }
+
+    @Test
+    void serverSourceRejectsOfflinePlayerName() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(
+                        PluginConfig.ServerMode.LOGIN,
+                        true,
+                        PluginConfig.UuidSource.SERVER
+                ),
+                true
+        );
+        BayMcWhiteListCommand command = new BayMcWhiteListCommand(runtime.plugin());
+        CommandSender sender = CommandTestSupport.sender("Admin", Set.of("baymcwhitelist.remove"));
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayerExact("Notch")).thenReturn(null);
+
+            command.onCommand(sender, CommandTestSupport.command(), "wl", new String[]{"remove", "Notch"});
+        }
+
+        verify(runtime.lang()).send(eq(sender), eq("admin.server-source-offline-name-unsupported"), anyMap());
+        verify(runtime.repository(), never()).findByUuid(anyString());
+        verifyNoInteractions(runtime.mojangProfileService());
+    }
+
+    @Test
+    void serverSourceOnlineNameUsesServerUuid() {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(
+                        PluginConfig.ServerMode.LOGIN,
+                        true,
+                        PluginConfig.UuidSource.SERVER
+                ),
+                true
+        );
+        when(runtime.inviteCodeService().generate(CommandTestSupport.PLAYER_UUID_TEXT))
+                .thenReturn(new GeneratedCode(
+                        "BAYMC-ABCDEFGH",
+                        LocalDate.parse("2026-06-19"),
+                        ZonedDateTime.of(2026, 6, 25, 23, 59, 59, 0, ZoneId.of("Asia/Shanghai"))
+                ));
+        BayMcWhiteListCommand command = new BayMcWhiteListCommand(runtime.plugin());
+        CommandSender sender = CommandTestSupport.sender("Admin", Set.of("baymcwhitelist.generate"));
+        Player player = CommandTestSupport.player("Notch", CommandTestSupport.PLAYER_UUID, Set.of());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayerExact("Notch")).thenReturn(player);
+
+            command.onCommand(sender, CommandTestSupport.command(), "wl", new String[]{"generate", "Notch"});
+        }
+
+        verify(runtime.inviteCodeService()).generate(CommandTestSupport.PLAYER_UUID_TEXT);
+        verifyNoInteractions(runtime.mojangProfileService());
     }
 
     private static MojangProfile profile() {

@@ -40,6 +40,13 @@ class PluginConfigTest {
     }
 
     @Test
+    void acceptsSupportedUuidSources() {
+        assertEquals(PluginConfig.UuidSource.MOJANG, loadWithUuidSource("mojang").player().uuidSource());
+        assertEquals(PluginConfig.UuidSource.OFFLINE_NAME, loadWithUuidSource("offline-name").player().uuidSource());
+        assertEquals(PluginConfig.UuidSource.SERVER, loadWithUuidSource("server").player().uuidSource());
+    }
+
+    @Test
     void rejectsUnsupportedUuidSource() {
         YamlConfiguration config = new YamlConfiguration();
         config.set("player.uuid-source", "offline");
@@ -273,6 +280,12 @@ class PluginConfigTest {
     private static PluginConfig loadWithSecurityText(String path, String value) {
         YamlConfiguration config = new YamlConfiguration();
         config.set(path, value);
+        return PluginConfig.load(config);
+    }
+
+    private static PluginConfig loadWithUuidSource(String value) {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("player.uuid-source", value);
         return PluginConfig.load(config);
     }
 }

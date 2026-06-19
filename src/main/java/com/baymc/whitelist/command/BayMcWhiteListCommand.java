@@ -4,6 +4,7 @@ import com.baymc.whitelist.BayMcWhiteListPlugin;
 import com.baymc.whitelist.code.GeneratedCode;
 import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.identity.PlayerIdentity;
+import com.baymc.whitelist.identity.PlayerIdentityResolver;
 import com.baymc.whitelist.mojang.MojangProfile;
 import com.baymc.whitelist.mojang.MojangProfileLookupException;
 import com.baymc.whitelist.storage.WhitelistLogEntry;
@@ -25,13 +26,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 /**
  * 处理 /baymcwhitelist 管理员命令
  */
 public final class BayMcWhiteListCommand implements TabExecutor {
-    private static final Pattern PLAYER_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_]{3,16}");
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final BayMcWhiteListPlugin plugin;
@@ -107,7 +106,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     /**
-     * 通过 Mojang 档案校验后由管理员直接写入白名单
+     * 按当前 UUID 来源解析目标后由管理员直接写入白名单
      */
     private boolean handleAdd(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String[] args) {
         if (!hasPermission(runtime, sender, "baymcwhitelist.add")) {
@@ -121,22 +120,29 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             return false;
         }
 
-        String input = args[1].trim();
-        Optional<UUID> inputUuid = parseUuid(input);
-        if (inputUuid.isEmpty() && !isValidPlayerName(input)) {
-            runtime.lang().send(sender, "common.invalid-player-identifier");
+        TargetInput targetInput = parseTargetInput(runtime, sender, args[1]);
+        if (targetInput == null) {
             return false;
         }
 
-        if (inputUuid.isPresent()) {
-            runtime.lang().send(sender, "admin.add-lookup-uuid-start", Map.of("uuid", inputUuid.get().toString()));
+        AddTarget localTarget = resolveLocalAddTarget(runtime, sender, targetInput);
+        if (localTarget == null && runtime.config().player().uuidSource() != PluginConfig.UuidSource.MOJANG) {
+            return false;
+        }
+        if (localTarget != null) {
+            runtime.lang().send(sender, "admin.add-identity-resolved", addPlaceholders(runtime, localTarget));
+            runtime.lang().send(sender, "admin.add-write-start");
+        } else if (targetInput.uuid().isPresent()) {
+            runtime.lang().send(sender, "admin.add-lookup-uuid-start", Map.of("uuid", targetInput.uuid().get().toString()));
         } else {
-            runtime.lang().send(sender, "admin.add-lookup-name-start", Map.of("player", input));
+            runtime.lang().send(sender, "admin.add-lookup-name-start", Map.of("player", targetInput.text()));
         }
 
         runtime.scheduler().runAsync(() -> {
             try {
-                AddTarget target = resolveAddTarget(runtime, sender, input, inputUuid);
+                AddTarget target = localTarget == null
+                        ? resolveMojangAddTarget(runtime, sender, targetInput)
+                        : localTarget;
                 if (target == null) {
                     return;
                 }
@@ -203,42 +209,44 @@ public final class BayMcWhiteListCommand implements TabExecutor {
             return false;
         }
 
-        String input = args[1].trim();
-        Optional<UUID> inputUuid = parseUuid(input);
-        boolean validPlayerName = inputUuid.isEmpty() && isValidPlayerName(input);
-        Player onlinePlayer = findOnlinePlayer(input, inputUuid);
-        CommandBoundaries.GenerateTargetDecision decision = CommandBoundaries.generateTargetDecision(
-                inputUuid.isPresent(),
-                validPlayerName,
-                onlinePlayer != null
-        );
+        TargetInput targetInput = parseTargetInput(runtime, sender, args[1]);
+        if (targetInput == null) {
+            return false;
+        }
 
-        switch (decision) {
-            case ONLINE_PLAYER -> {
-                PlayerIdentity identity = PlayerIdentity.fromPlayer(onlinePlayer);
-                runtime.lang().send(sender, "admin.generate-online-found", identityPlaceholders(runtime, identity));
-                sendGeneratedCode(runtime, sender, identity);
-                return false;
-            }
-            case INVALID_IDENTIFIER -> {
-                runtime.lang().send(sender, "common.invalid-player-identifier");
-                return false;
-            }
-            case UUID_LOOKUP -> runtime.lang().send(
+        IdentityTarget localTarget = resolveLocalGenerationTarget(runtime, sender, targetInput);
+        if (localTarget != null) {
+            runtime.lang().send(
+                    sender,
+                    localTarget.source() == TargetSource.ONLINE
+                            ? "admin.generate-online-found"
+                            : "admin.generate-identity-resolved",
+                    identityPlaceholders(runtime, localTarget.identity())
+            );
+            sendGeneratedCode(runtime, sender, localTarget.identity());
+            return false;
+        }
+        if (runtime.config().player().uuidSource() != PluginConfig.UuidSource.MOJANG) {
+            return false;
+        }
+
+        if (targetInput.uuid().isPresent()) {
+            runtime.lang().send(
                     sender,
                     "admin.generate-lookup-uuid-start",
-                    Map.of("uuid", inputUuid.orElseThrow().toString())
+                    Map.of("uuid", targetInput.uuid().get().toString())
             );
-            case NAME_LOOKUP -> runtime.lang().send(
+        } else {
+            runtime.lang().send(
                     sender,
                     "admin.generate-lookup-name-start",
-                    Map.of("player", input)
+                    Map.of("player", targetInput.text())
             );
         }
 
         runtime.scheduler().runAsync(() -> {
             try {
-                PlayerIdentity identity = resolveOfflineGenerationIdentity(runtime, sender, input, inputUuid);
+                PlayerIdentity identity = resolveMojangGenerationIdentity(runtime, sender, targetInput);
                 if (identity == null) {
                     return;
                 }
@@ -423,7 +431,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
                 "server_mode", state(runtime, config.server().mode() == PluginConfig.ServerMode.LOGIN ? "state.mode-login" : "state.mode-protected"),
                 "code_prefix", config.code().prefix(),
                 "valid_days", String.valueOf(config.code().validDays()),
-                "uuid_source", state(runtime, "state.uuid-source-mojang"),
+                "uuid_source", state(runtime, uuidSourceStateKey(runtime)),
                 "database_status", state(runtime, runtime.databaseReady() ? "state.database-ready" : "state.database-unavailable")
         ));
     }
@@ -431,31 +439,55 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     /**
      * 根据当前身份模式和管理员输入解析手动添加目标
      */
-    private AddTarget resolveAddTarget(
+    private @Nullable AddTarget resolveLocalAddTarget(
             BayMcWhiteListPlugin.RuntimeState runtime,
             CommandSender sender,
-            String input,
-            Optional<UUID> inputUuid
+            TargetInput targetInput
+    ) {
+        PluginConfig.UuidSource uuidSource = runtime.config().player().uuidSource();
+        if (uuidSource == PluginConfig.UuidSource.MOJANG) {
+            return null;
+        }
+        if (targetInput.uuid().isPresent()) {
+            return new AddTarget(PlayerIdentityResolver.fromUuidInput(targetInput.uuid().get()), false);
+        }
+        if (uuidSource == PluginConfig.UuidSource.OFFLINE_NAME) {
+            return new AddTarget(PlayerIdentityResolver.fromOfflineName(targetInput.text()), false);
+        }
+
+        Player onlinePlayer = Bukkit.getPlayerExact(targetInput.text());
+        if (onlinePlayer == null) {
+            sendServerSourceOfflineNameUnsupported(runtime, sender);
+            return null;
+        }
+        return new AddTarget(PlayerIdentityResolver.fromPlayer(onlinePlayer, uuidSource), false);
+    }
+
+    private AddTarget resolveMojangAddTarget(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender,
+            TargetInput targetInput
     ) throws MojangProfileLookupException {
-        if (inputUuid.isPresent()) {
-            Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByUuid(inputUuid.get());
+        if (targetInput.uuid().isPresent()) {
+            UUID uuid = targetInput.uuid().get();
+            Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByUuid(uuid);
             if (profile.isEmpty()) {
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
                         sender,
                         "admin.add-uuid-not-found",
-                        Map.of("uuid", inputUuid.get().toString())
+                        Map.of("uuid", uuid.toString())
                 ));
                 return null;
             }
             return addTargetFromProfile(profile.get());
         }
 
-        Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByName(input);
+        Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByName(targetInput.text());
         if (profile.isEmpty()) {
             runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
                     sender,
                     "admin.add-name-not-found",
-                    Map.of("player", input)
+                    Map.of("player", targetInput.text())
             ));
             return null;
         }
@@ -498,31 +530,55 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     /**
      * 为邀请码生成操作解析目标身份
      */
-    private @Nullable PlayerIdentity resolveOfflineGenerationIdentity(
+    private @Nullable IdentityTarget resolveLocalGenerationTarget(
             BayMcWhiteListPlugin.RuntimeState runtime,
             CommandSender sender,
-            String input,
-            Optional<UUID> inputUuid
+            TargetInput targetInput
+    ) {
+        PluginConfig.UuidSource uuidSource = runtime.config().player().uuidSource();
+        Player onlinePlayer = findOnlinePlayer(targetInput);
+        if (onlinePlayer != null) {
+            return new IdentityTarget(PlayerIdentityResolver.fromPlayer(onlinePlayer, uuidSource), TargetSource.ONLINE);
+        }
+        if (uuidSource == PluginConfig.UuidSource.MOJANG) {
+            return null;
+        }
+        if (targetInput.uuid().isPresent()) {
+            return new IdentityTarget(PlayerIdentityResolver.fromUuidInput(targetInput.uuid().get()), TargetSource.LOCAL);
+        }
+        if (uuidSource == PluginConfig.UuidSource.OFFLINE_NAME) {
+            return new IdentityTarget(PlayerIdentityResolver.fromOfflineName(targetInput.text()), TargetSource.LOCAL);
+        }
+
+        sendServerSourceOfflineNameUnsupported(runtime, sender);
+        return null;
+    }
+
+    private @Nullable PlayerIdentity resolveMojangGenerationIdentity(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender,
+            TargetInput targetInput
     ) throws MojangProfileLookupException {
-        if (inputUuid.isPresent()) {
-            Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByUuid(inputUuid.get());
+        if (targetInput.uuid().isPresent()) {
+            UUID uuid = targetInput.uuid().get();
+            Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByUuid(uuid);
             if (profile.isEmpty()) {
                 runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
                         sender,
                         "admin.generate-uuid-not-found",
-                        Map.of("uuid", inputUuid.get().toString())
+                        Map.of("uuid", uuid.toString())
                 ));
                 return null;
             }
             return identityFromProfile(profile.get());
         }
 
-        Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByName(input);
+        Optional<MojangProfile> profile = runtime.mojangProfileService().lookupByName(targetInput.text());
         if (profile.isEmpty()) {
             runtime.scheduler().runForSender(sender, () -> runtime.lang().send(
                     sender,
                     "admin.generate-name-not-found",
-                    Map.of("player", input)
+                    Map.of("player", targetInput.text())
             ));
             return null;
         }
@@ -546,7 +602,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
         return Map.of(
                 "player", identity.name(),
                 "uuid", identity.uuidText(),
-                "uuid_source", state(runtime, "state.uuid-source-mojang"),
+                "uuid_source", state(runtime, uuidSourceStateKey(runtime)),
                 "code", generatedCode.code(),
                 "expire_time", DATE_TIME_FORMATTER.format(generatedCode.expiresAt())
         );
@@ -563,15 +619,15 @@ public final class BayMcWhiteListCommand implements TabExecutor {
         return new PlayerIdentity(profile.uuid(), profile.name());
     }
 
-    private @Nullable Player findOnlinePlayer(String input, Optional<UUID> inputUuid) {
-        if (inputUuid.isPresent()) {
-            UUID uuid = inputUuid.get();
+    private @Nullable Player findOnlinePlayer(TargetInput targetInput) {
+        if (targetInput.uuid().isPresent()) {
+            UUID uuid = targetInput.uuid().get();
             return Bukkit.getOnlinePlayers().stream()
                     .filter(player -> player.getUniqueId().equals(uuid))
                     .findFirst()
                     .orElse(null);
         }
-        return Bukkit.getPlayerExact(input);
+        return Bukkit.getPlayerExact(targetInput.text());
     }
 
     private static String valueOrEmpty(String value) {
@@ -579,49 +635,79 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     /**
-     * 为状态命令解析查询目标; 离线玩家名会先查询 Mojang 档案并转为 UUID
+     * 为状态命令按当前 UUID 来源解析查询目标
      */
     private LookupTarget resolveStatusTarget(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String input) {
-        Optional<UUID> uuid = parseUuid(input);
-        if (uuid.isPresent()) {
-            return new LookupTarget(input, uuid.get().toString(), false);
-        }
-
-        if (!isValidPlayerName(input)) {
-            runtime.lang().send(sender, "common.invalid-player-identifier");
+        TargetInput targetInput = parseTargetInput(runtime, sender, input);
+        if (targetInput == null) {
             return null;
         }
 
-        Player onlinePlayer = Bukkit.getPlayerExact(input);
-        if (onlinePlayer != null) {
-            return new LookupTarget(input, onlinePlayer.getUniqueId().toString(), false);
+        if (targetInput.uuid().isPresent()) {
+            return new LookupTarget(targetInput.text(), targetInput.uuid().get().toString(), false);
         }
-        runtime.lang().send(sender, "admin.status-lookup-name-start", Map.of("player", input));
-        return new LookupTarget(input, null, true);
+
+        Player onlinePlayer = findOnlinePlayer(targetInput);
+        if (onlinePlayer != null) {
+            PlayerIdentity identity = PlayerIdentityResolver.fromPlayer(
+                    onlinePlayer,
+                    runtime.config().player().uuidSource()
+            );
+            return new LookupTarget(targetInput.text(), identity.uuidText(), false);
+        }
+
+        return switch (runtime.config().player().uuidSource()) {
+            case MOJANG -> {
+                runtime.lang().send(sender, "admin.status-lookup-name-start", Map.of("player", targetInput.text()));
+                yield new LookupTarget(targetInput.text(), null, true);
+            }
+            case OFFLINE_NAME -> new LookupTarget(
+                    targetInput.text(),
+                    PlayerIdentityResolver.fromOfflineName(targetInput.text()).uuidText(),
+                    false
+            );
+            case SERVER -> {
+                sendServerSourceOfflineNameUnsupported(runtime, sender);
+                yield null;
+            }
+        };
     }
 
     /**
-     * 离线正版玩家名会先解析 Mojang UUID, 再按标准 UUID 移除白名单
+     * 按当前 UUID 来源解析移除目标
      */
     private LookupTarget resolveRemoveTarget(BayMcWhiteListPlugin.RuntimeState runtime, CommandSender sender, String input) {
-        Optional<UUID> uuid = parseUuid(input);
-        boolean validName = isValidPlayerName(input);
-        Player onlinePlayer = uuid.isEmpty() && validName ? Bukkit.getPlayerExact(input) : null;
-        CommandBoundaries.RemoveTargetDecision decision = CommandBoundaries.removeTargetDecision(
-                uuid.isPresent(),
-                validName,
-                onlinePlayer != null
-        );
-        return switch (decision) {
-            case UUID_INPUT -> new LookupTarget(input, uuid.orElseThrow().toString(), false);
-            case ONLINE_UUID_NAME -> new LookupTarget(input, onlinePlayer.getUniqueId().toString(), false);
-            case INVALID_IDENTIFIER -> {
-                runtime.lang().send(sender, "common.invalid-player-identifier");
-                yield null;
+        TargetInput targetInput = parseTargetInput(runtime, sender, input);
+        if (targetInput == null) {
+            return null;
+        }
+
+        if (targetInput.uuid().isPresent()) {
+            return new LookupTarget(targetInput.text(), targetInput.uuid().get().toString(), false);
+        }
+
+        Player onlinePlayer = findOnlinePlayer(targetInput);
+        if (onlinePlayer != null) {
+            PlayerIdentity identity = PlayerIdentityResolver.fromPlayer(
+                    onlinePlayer,
+                    runtime.config().player().uuidSource()
+            );
+            return new LookupTarget(targetInput.text(), identity.uuidText(), false);
+        }
+
+        return switch (runtime.config().player().uuidSource()) {
+            case MOJANG -> {
+                runtime.lang().send(sender, "admin.remove-lookup-name-start", Map.of("player", targetInput.text()));
+                yield new LookupTarget(targetInput.text(), null, true);
             }
-            case UUID_MODE_OFFLINE_NAME_LOOKUP -> {
-                runtime.lang().send(sender, "admin.remove-lookup-name-start", Map.of("player", input));
-                yield new LookupTarget(input, null, true);
+            case OFFLINE_NAME -> new LookupTarget(
+                    targetInput.text(),
+                    PlayerIdentityResolver.fromOfflineName(targetInput.text()).uuidText(),
+                    false
+            );
+            case SERVER -> {
+                sendServerSourceOfflineNameUnsupported(runtime, sender);
+                yield null;
             }
         };
     }
@@ -811,28 +897,37 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     /**
-     * 校验命令输入中使用的 Minecraft 正版账号名
-     */
-    private static boolean isValidPlayerName(String input) {
-        return PLAYER_NAME_PATTERN.matcher(input).matches();
-    }
-
-    /**
      * 解析 UUID 输入, 避免异常穿透命令处理器
      */
     private static Optional<UUID> parseUuid(String input) {
-        try {
-            String normalized = input.replace("-", "");
-            if (normalized.matches("[0-9a-fA-F]{32}")) {
-                return Optional.of(UUID.fromString(normalized.replaceFirst(
-                        "([0-9a-fA-F]{8})([0-9a-fA-F]{4})([0-9a-fA-F]{4})([0-9a-fA-F]{4})([0-9a-fA-F]{12})",
-                        "$1-$2-$3-$4-$5"
-                )));
-            }
-            return Optional.of(UUID.fromString(input));
-        } catch (IllegalArgumentException exception) {
-            return Optional.empty();
+        return PlayerIdentityResolver.parseUuid(input);
+    }
+
+    private @Nullable TargetInput parseTargetInput(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender,
+            String rawInput
+    ) {
+        String input = rawInput == null ? "" : rawInput.trim();
+        Optional<UUID> uuid = PlayerIdentityResolver.parseUuid(input);
+        if (uuid.isEmpty() && !PlayerIdentityResolver.isValidPlayerName(input)) {
+            runtime.lang().send(sender, "common.invalid-player-identifier");
+            return null;
         }
+        return new TargetInput(input, uuid);
+    }
+
+    private void sendServerSourceOfflineNameUnsupported(
+            BayMcWhiteListPlugin.RuntimeState runtime,
+            CommandSender sender
+    ) {
+        runtime.lang().send(sender, "admin.server-source-offline-name-unsupported", Map.of(
+                "uuid_source", state(runtime, uuidSourceStateKey(runtime))
+        ));
+    }
+
+    private String uuidSourceStateKey(BayMcWhiteListPlugin.RuntimeState runtime) {
+        return PlayerIdentityResolver.uuidSourceLanguageKey(runtime.config().player().uuidSource());
     }
 
     /**
@@ -844,6 +939,17 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     /**
      * 用户输入的查询文本, 以及可用时解析出的标准键
      */
+    private record IdentityTarget(PlayerIdentity identity, TargetSource source) {
+    }
+
+    private enum TargetSource {
+        ONLINE,
+        LOCAL
+    }
+
+    private record TargetInput(String text, Optional<UUID> uuid) {
+    }
+
     private record LookupTarget(String input, String playerUuid, boolean resolveMojangName) {
     }
 

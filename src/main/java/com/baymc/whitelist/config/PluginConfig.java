@@ -301,7 +301,9 @@ public record PluginConfig(
      * 白名单记录支持的 UUID 来源
      */
     public enum UuidSource {
-        MOJANG;
+        MOJANG,
+        OFFLINE_NAME,
+        SERVER;
 
         /**
          * 解析配置中的 uuid-source 值
@@ -309,7 +311,9 @@ public record PluginConfig(
         public static UuidSource from(String raw) {
             return switch (raw.toLowerCase(Locale.ROOT)) {
                 case "mojang" -> MOJANG;
-                default -> throw new IllegalArgumentException("player.uuid-source must be mojang");
+                case "offline-name" -> OFFLINE_NAME;
+                case "server" -> SERVER;
+                default -> throw new IllegalArgumentException("player.uuid-source must be mojang, offline-name or server");
             };
         }
     }

@@ -1,10 +1,16 @@
 package com.baymc.whitelist.command;
 
 import com.baymc.whitelist.config.PluginConfig;
+import com.baymc.whitelist.code.VerificationResult;
+import com.baymc.whitelist.identity.PlayerIdentity;
+import com.baymc.whitelist.identity.PlayerIdentityResolver;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -12,6 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -134,5 +141,44 @@ class WhitelistCommandExecutionTest {
         verify(firstRuntime.repository()).findByUuid(CommandTestSupport.PLAYER_UUID_TEXT);
         verifyNoInteractions(secondRuntime.repository());
         verify(firstRuntime.lang()).send(eq(player), eq("player.status-not-whitelisted"), anyMap());
+    }
+
+    @Test
+    void inviteVerificationUsesOfflineNameUuidWhenConfigured() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(
+                        PluginConfig.ServerMode.LOGIN,
+                        true,
+                        PluginConfig.UuidSource.OFFLINE_NAME
+                ),
+                true
+        );
+        String offlineUuid = PlayerIdentityResolver.offlineNameUuid("Notch").toString();
+        when(runtime.repository().isWhitelisted(offlineUuid)).thenReturn(false);
+        when(runtime.inviteCodeService().verify("BAYMC-ABCDEFGH", offlineUuid))
+                .thenReturn(VerificationResult.valid(
+                        "BAYMC-ABCDEFGH",
+                        LocalDate.parse("2026-06-19"),
+                        ZonedDateTime.of(2026, 6, 25, 23, 59, 59, 0, ZoneId.of("Asia/Shanghai"))
+                ));
+        WhitelistCommand command = new WhitelistCommand(runtime.plugin());
+        Player player = CommandTestSupport.player(
+                "Notch",
+                CommandTestSupport.PLAYER_UUID,
+                Set.of("baymcwhitelist.use")
+        );
+
+        command.onCommand(player, CommandTestSupport.command(), "whitelist", new String[]{"BAYMC-ABCDEFGH"});
+
+        verify(runtime.repository(), never()).isWhitelisted(CommandTestSupport.PLAYER_UUID_TEXT);
+        verify(runtime.inviteCodeService()).verify("BAYMC-ABCDEFGH", offlineUuid);
+        org.mockito.ArgumentCaptor<PlayerIdentity> identity = org.mockito.ArgumentCaptor.forClass(PlayerIdentity.class);
+        verify(runtime.repository()).upsert(
+                identity.capture(),
+                eq("BAYMC-ABCDEFGH"),
+                any(LocalDate.class),
+                any(java.time.LocalDateTime.class)
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(offlineUuid, identity.getValue().uuidText());
     }
 }

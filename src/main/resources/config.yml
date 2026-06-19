@@ -109,11 +109,12 @@ security:
     notify-interval-seconds: 60
 
 # 玩家身份标识配置
-# 当前阶段只支持 Mojang UUID 作为白名单唯一键
+# 所有模式都使用 UUID 作为白名单唯一键, 该项决定 UUID 从哪里来
 player:
-  # 可选值: mojang
-  # 玩家名只作为 Mojang 查询入口; 邀请码、白名单判断和移除都绑定到标准 UUID
-  # 离线服请先确保服务器/代理提供的 UUID 与 Mojang UUID 策略一致
+  # 可选值: mojang, offline-name, server
+  # mojang: 正版服/正确转发正版 UUID 的代理使用; 离线玩家名会通过 Mojang API 解析
+  # offline-name: 纯离线服使用; UUID 按 OfflinePlayer:<玩家名> 计算, 玩家名大小写会影响结果
+  # server: 外置登录/代理自定义 UUID 使用; 只信任服务端实际 UUID, 离线玩家名不能解析
   uuid-source: "mojang"
 
 # 撤销白名单配置

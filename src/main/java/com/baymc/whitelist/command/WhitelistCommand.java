@@ -4,6 +4,7 @@ import com.baymc.whitelist.BayMcWhiteListPlugin;
 import com.baymc.whitelist.code.VerificationResult;
 import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.identity.PlayerIdentity;
+import com.baymc.whitelist.identity.PlayerIdentityResolver;
 import com.baymc.whitelist.security.VerifyRateLimiter;
 import com.baymc.whitelist.storage.WhitelistLogEntry;
 import com.baymc.whitelist.storage.WhitelistRecord;
@@ -67,7 +68,10 @@ public final class WhitelistCommand implements TabExecutor {
                 return true;
             }
 
-            PlayerIdentity identity = PlayerIdentity.fromPlayer(player);
+            PlayerIdentity identity = PlayerIdentityResolver.fromPlayer(
+                    player,
+                    runtime.config().player().uuidSource()
+            );
             if (!runtime.databaseReady()) {
                 runtime.lang().send(player, "mysql.not-ready");
                 return true;

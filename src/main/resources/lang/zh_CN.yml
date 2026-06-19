@@ -4,7 +4,7 @@ common:
   no-permission: "<prefix><red>⚠️ 权限不足, 你没有权限执行该命令</red>"
   only-player: "<prefix><red>❌ 该命令只能由游戏内玩家执行</red>"
   unknown-command: "<prefix><red>❓ 未知子命令, 请检查输入是否正确</red>"
-  invalid-player-identifier: "<prefix><red>⚠️ 玩家名或 UUID 不合法! 请输入正确的正版玩家名或标准 UUID</red>"
+  invalid-player-identifier: "<prefix><red>⚠️ 玩家名或 UUID 不合法! 请输入正确的玩家名或标准 UUID</red>"
   missing-language-key: "<prefix><red>⚙️ 语言文件缺少节点: <white><key></white></red>"
 
 usage:
@@ -44,6 +44,7 @@ admin:
   reload-failed: "<prefix><red>❌ 重载失败! 配置存在错误, 请及时检查后台日志</red>"
   add-lookup-name-start: "<prefix><yellow>🔎 正在查询玩家 <white><player></white> 的正版 UUID, 请稍候...</yellow>"
   add-lookup-uuid-start: "<prefix><yellow>🔎 正在校验 UUID <white><uuid></white>, 请稍候...</yellow>"
+  add-identity-resolved: "<prefix><green>✅ 已解析玩家身份: <white><player></white> / <white><uuid></white></green>"
   add-profile-found: "<prefix><green>✅ 已获取正版档案: <white><player></white> / <white><uuid></white></green>"
   add-write-start: "<prefix><yellow>📝 正在写入白名单...</yellow>"
   add-already-whitelisted: "<prefix><yellow>ℹ️ 玩家 <white><player></white> 已在白名单中, 无需重复添加</yellow>"
@@ -55,6 +56,7 @@ admin:
     - " <dark_gray>▪</dark_gray> <gray><gradient:#DDA0DD:#9370DB>UUID</gradient>: </gray><white><uuid></white>"
     - " <dark_gray>▪</dark_gray> <gray>添加方式: </gray><white>管理员手动添加</white>"
   generate-online-found: "<prefix><green>✅ 已识别在线玩家: <white><player></white> / <white><uuid></white></green>"
+  generate-identity-resolved: "<prefix><green>✅ 已解析玩家身份: <white><player></white> / <white><uuid></white></green>"
   generate-lookup-name-start: "<prefix><yellow>🔎 玩家 <white><player></white> 当前不在线, 正在查询 Mojang 正版档案...</yellow>"
   generate-lookup-uuid-start: "<prefix><yellow>🔎 UUID <white><uuid></white> 当前不在线, 正在校验 Mojang 正版档案...</yellow>"
   generate-profile-found: "<prefix><green>✅ 已获取正版档案: <white><player></white> / <white><uuid></white></green>"
@@ -73,6 +75,7 @@ admin:
   status-lookup-name-start: "<prefix><yellow>🔎 玩家 <white><player></white> 当前不在线, 正在查询 Mojang 正版档案...</yellow>"
   status-name-not-found: "<prefix><red>❌ 未找到正版玩家 <white><player></white>, 无法查询白名单状态</red>"
   status-lookup-failed: "<prefix><red>🚨 Mojang API 查询失败, 无法查询白名单状态, 请稍后重试</red>"
+  server-source-offline-name-unsupported: "<prefix><red>❌ 当前 UUID 来源为 <white><uuid_source></white>, 离线玩家名无法解析, 请提供 UUID 或在线玩家名</red>"
   status-whitelisted:
     - "<prefix><green>📊 档案查询: 玩家 <gold><player></gold> [已通过验证]</green>"
     - " <dark_gray>▪</dark_gray> <gray><gradient:#DDA0DD:#9370DB>UUID</gradient> 编码: </gray><white><uuid></white>"
@@ -144,6 +147,8 @@ state:
   mode-login: "<aqua>登录服</aqua>"
   mode-protected: "<gold>受保护服务器</gold>"
   uuid-source-mojang: "<bold><gradient:#DDA0DD:#9370DB>Mojang UUID</gradient></bold>"
+  uuid-source-offline-name: "<bold><gradient:#87CEEB:#32CD32>离线名 UUID</gradient></bold>"
+  uuid-source-server: "<bold><gradient:#FFD700:#FF8C00>服务端 UUID</gradient></bold>"
   none: "<gray>无</gray>"
 
 join:

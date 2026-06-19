@@ -9,7 +9,7 @@ final class StorageLimits {
     /** whitelist_players.player_uuid 和 whitelist_logs.player_uuid 的最大长度 */
     static final int PLAYER_UUID = 36;
     /** 玩家名字段的最大长度, 与 Minecraft 玩家名边界保持一致 */
-    static final int PLAYER_NAME = 32;
+    static final int PLAYER_NAME = 36;
     /** 审计动作代码字段的最大长度 */
     static final int ACTION = 32;
     /** 邀请码字段的最大长度, 覆盖最长前缀, 分隔符和 52 位后缀 */
