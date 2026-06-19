@@ -7,15 +7,15 @@ import java.util.Locale;
 import java.util.function.Predicate;
 
 /**
- * 管理命令和玩家命令共用的边界判断工具
+ * 命令入口共用的边界判断工具
  *
  * <p>这里只放不依赖 Bukkit 运行时的纯判断, 这样权限和参数数量可以被单元测试直接覆盖
  */
 final class CommandBoundaries {
     /**
-     * 管理员命令当前支持的全部一级子命令, 顺序同时用于 Tab 补全展示
+     * /baymcwhitelist 当前支持的全部一级子命令, 顺序同时用于 Tab 补全展示
      */
-    static final List<String> ADMIN_SUBCOMMANDS = List.of("add", "generate", "status", "remove", "reload", "info", "help");
+    static final List<String> BAYMC_SUBCOMMANDS = List.of("add", "generate", "status", "remove", "reload", "info", "help");
 
     private CommandBoundaries() {
     }
@@ -60,18 +60,18 @@ final class CommandBoundaries {
     }
 
     /**
-     * 根据输入前缀和发送者权限返回可见的管理员子命令补全列表
+     * 根据输入前缀和发送者权限返回可见的 /baymcwhitelist 子命令补全列表
      */
-    static List<String> visibleAdminSubcommands(Predicate<String> hasPermission, String rawPrefix) {
+    static List<String> visibleBayMcSubcommands(Predicate<String> hasPermission, String rawPrefix) {
         String prefix = rawPrefix.toLowerCase(Locale.ROOT);
-        return ADMIN_SUBCOMMANDS.stream()
+        return BAYMC_SUBCOMMANDS.stream()
                 .filter(subcommand -> subcommand.startsWith(prefix))
                 .filter(subcommand -> hasPermission.test(permissionFor(subcommand)))
                 .toList();
     }
 
     /**
-     * 将管理员子命令映射到代码中显式检查的权限节点
+     * 将 /baymcwhitelist 子命令映射到代码中显式检查的权限节点
      */
     static String permissionFor(String subcommand) {
         return switch (subcommand.toLowerCase(Locale.ROOT)) {

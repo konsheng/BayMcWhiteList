@@ -113,14 +113,14 @@ class CommandBoundariesTest {
     }
 
     @Test
-    void adminTargetCommandsRequireOneTargetArgument() {
+    void targetSubcommandsRequireOneTargetArgument() {
         assertFalse(CommandBoundaries.hasExactArgumentCount(new String[]{"generate"}, 2));
         assertTrue(CommandBoundaries.hasExactArgumentCount(new String[]{"generate", "Steve"}, 2));
         assertFalse(CommandBoundaries.hasExactArgumentCount(new String[]{"generate", "Steve", "extra"}, 2));
     }
 
     @Test
-    void adminTabCompletionOnlyShowsPermittedSubcommands() {
+    void bayMcTabCompletionOnlyShowsPermittedSubcommands() {
         Set<String> permissions = Set.of(
                 "baymcwhitelist.add",
                 "baymcwhitelist.generate",
@@ -128,7 +128,7 @@ class CommandBoundariesTest {
                 "baymcwhitelist.help"
         );
 
-        List<String> visible = CommandBoundaries.visibleAdminSubcommands(permissions::contains, "");
+        List<String> visible = CommandBoundaries.visibleBayMcSubcommands(permissions::contains, "");
 
         assertEquals(List.of("add", "generate", "info", "help"), visible);
     }
@@ -137,7 +137,7 @@ class CommandBoundariesTest {
     void addSubcommandUsesIndependentPermission() {
         assertEquals("baymcwhitelist.add", CommandBoundaries.permissionFor("add"));
 
-        List<String> visible = CommandBoundaries.visibleAdminSubcommands(
+        List<String> visible = CommandBoundaries.visibleBayMcSubcommands(
                 "baymcwhitelist.add"::equals,
                 ""
         );
@@ -149,7 +149,7 @@ class CommandBoundariesTest {
     void helpSubcommandUsesIndependentPermission() {
         assertEquals("baymcwhitelist.help", CommandBoundaries.permissionFor("help"));
 
-        List<String> visible = CommandBoundaries.visibleAdminSubcommands(
+        List<String> visible = CommandBoundaries.visibleBayMcSubcommands(
                 "baymcwhitelist.help"::equals,
                 ""
         );
@@ -158,8 +158,8 @@ class CommandBoundariesTest {
     }
 
     @Test
-    void adminTabCompletionHidesAllSubcommandsWithoutPermissions() {
-        List<String> visible = CommandBoundaries.visibleAdminSubcommands(permission -> false, "");
+    void bayMcTabCompletionHidesAllSubcommandsWithoutPermissions() {
+        List<String> visible = CommandBoundaries.visibleBayMcSubcommands(permission -> false, "");
 
         assertEquals(List.of(), visible);
     }
