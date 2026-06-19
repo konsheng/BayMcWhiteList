@@ -10,6 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * 针对不依赖 Bukkit 运行时的命令边界纯判断测试
+ */
 class CommandBoundariesTest {
     @Test
     void whitelistRejectsConsoleSender() {

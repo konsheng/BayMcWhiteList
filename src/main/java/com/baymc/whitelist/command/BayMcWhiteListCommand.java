@@ -829,7 +829,7 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     /**
-     * 优先按标准键查询; 只有目标允许名称回退时才按玩家名查询历史记录
+     * 只按解析出的标准 UUID 查询仓库; Mojang 名称解析会在进入这里之前完成
      */
     private LookupResult findRecord(BayMcWhiteListPlugin.RuntimeState runtime, LookupTarget target) throws SQLException {
         if (target.playerUuid() == null) {
@@ -937,19 +937,28 @@ public final class BayMcWhiteListCommand implements TabExecutor {
     }
 
     /**
-     * 用户输入的查询文本, 以及可用时解析出的标准键
+     * 生成邀请码时已解析出的目标身份及其来源
      */
     private record IdentityTarget(PlayerIdentity identity, TargetSource source) {
     }
 
+    /**
+     * 记录目标身份来自在线玩家实体还是本地输入解析
+     */
     private enum TargetSource {
         ONLINE,
         LOCAL
     }
 
+    /**
+     * 管理员输入的原始目标文本, 以及可用时解析出的 UUID
+     */
     private record TargetInput(String text, Optional<UUID> uuid) {
     }
 
+    /**
+     * 状态或移除命令的仓库查询目标; resolveMojangName 表示还需要线上档案解析
+     */
     private record LookupTarget(String input, String playerUuid, boolean resolveMojangName) {
     }
 

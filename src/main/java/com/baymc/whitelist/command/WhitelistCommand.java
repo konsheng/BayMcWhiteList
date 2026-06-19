@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Handles the player-facing /whitelist invite-code command.
+ * 处理玩家侧 /whitelist 邀请码验证和自助状态查询命令
  */
 public final class WhitelistCommand implements TabExecutor {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -143,7 +143,7 @@ public final class WhitelistCommand implements TabExecutor {
     /**
      * 构建玩家自助状态查询占位符
      *
-     * <p>自助查询只展示当前玩家自己的记录; 如果数据库记录缺少 UUID, 会回退到当前在线玩家实体的 UUID
+     * <p>自助查询只展示当前玩家自己的记录; 展示字段为空时回退到当前解析出的玩家身份
      */
     private Map<String, String> selfStatusPlaceholders(
             BayMcWhiteListPlugin.RuntimeState runtime,

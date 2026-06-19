@@ -15,6 +15,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 针对受保护服务器预登录白名单检查的 UUID 来源行为测试
+ */
 class WhitelistLoginListenerExecutionTest {
     @Test
     void protectedLoginUsesOfflineNameUuidWhenConfigured() throws Exception {

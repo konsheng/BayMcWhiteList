@@ -27,6 +27,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * 命令执行测试共用的配置, 运行期和 Bukkit 对象构造工具
+ */
 final class CommandTestSupport {
     static final UUID PLAYER_UUID = UUID.fromString("069a79f4-44e9-4726-a5be-fca90e38aaf5");
     static final String PLAYER_UUID_TEXT = PLAYER_UUID.toString();
@@ -137,6 +140,9 @@ final class CommandTestSupport {
         return mock(Command.class);
     }
 
+    /**
+     * 一次命令测试中用到的运行期快照和可验证依赖
+     */
     record RuntimeHarness(
             BayMcWhiteListPlugin plugin,
             BayMcWhiteListPlugin.RuntimeState state,

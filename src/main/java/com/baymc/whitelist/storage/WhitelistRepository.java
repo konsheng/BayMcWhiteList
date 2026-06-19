@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Manages whitelist state and audit logs in MySQL.
+ * 通过 MySQL 读写白名单状态和审计日志
  */
 public final class WhitelistRepository {
     private static final SqlTemplates REPOSITORY_SQL = SqlTemplates.load("sql/repository.sql");
@@ -32,6 +32,9 @@ public final class WhitelistRepository {
         );
     }
 
+    /**
+     * 判断指定 UUID 是否已有白名单记录
+     */
     public boolean isWhitelisted(String playerUuid) throws SQLException {
         String sql = sql("is_whitelisted");
         try (Connection connection = database.getConnection();
@@ -43,6 +46,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 按白名单主键 UUID 查询完整记录
+     */
     public Optional<WhitelistRecord> findByUuid(String playerUuid) throws SQLException {
         String sql = sql("find_by_uuid");
         try (Connection connection = database.getConnection();
@@ -54,6 +60,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 邀请码验证成功后写入或刷新玩家白名单记录
+     */
     public void upsert(PlayerIdentity identity, String code, LocalDate issueDate, LocalDateTime usedAt) throws SQLException {
         String sql = sql("upsert_player");
 
@@ -70,6 +79,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 管理员手动添加白名单记录, 已存在时返回 false
+     */
     public boolean insertManual(PlayerIdentity identity, LocalDate issueDate, LocalDateTime usedAt) throws SQLException {
         String sql = sql("insert_manual_player");
 
@@ -84,6 +96,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 按 UUID 删除白名单记录
+     */
     public boolean removeByUuid(String playerUuid) throws SQLException {
         String sql = sql("remove_by_uuid");
         try (Connection connection = database.getConnection();
@@ -93,6 +108,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 受保护服务器放行玩家后刷新最后出现时间
+     */
     public void updateLastSeen(String playerUuid, LocalDateTime lastSeenAt) throws SQLException {
         String sql = sql("update_last_seen");
         try (Connection connection = database.getConnection();
@@ -103,6 +121,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 写入审计日志, 并在入库前按字段上限截断外部输入
+     */
     public void log(WhitelistLogEntry entry) throws SQLException {
         String sql = sql("insert_log");
 
@@ -120,6 +141,9 @@ public final class WhitelistRepository {
         }
     }
 
+    /**
+     * 从查询结果构建不可变白名单记录
+     */
     private static WhitelistRecord readRecord(ResultSet resultSet) throws SQLException {
         Timestamp usedAt = resultSet.getTimestamp("used_at");
         Timestamp lastSeenAt = resultSet.getTimestamp("last_seen_at");
@@ -135,10 +159,16 @@ public final class WhitelistRepository {
         );
     }
 
+    /**
+     * 渲染仓库 SQL 模板
+     */
     private String sql(String name) {
         return REPOSITORY_SQL.render(name, sqlPlaceholders);
     }
 
+    /**
+     * 将审计字段限制到数据库列长度, 空值保持为空
+     */
     static String truncate(String input, int maxLength) {
         if (input == null || input.length() <= maxLength) {
             return input;

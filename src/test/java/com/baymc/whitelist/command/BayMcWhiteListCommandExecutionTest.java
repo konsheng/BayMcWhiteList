@@ -36,6 +36,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * 针对管理员命令执行路径的参数, 权限和 UUID 来源行为测试
+ */
 class BayMcWhiteListCommandExecutionTest {
     @ParameterizedTest
     @MethodSource("usageCases")

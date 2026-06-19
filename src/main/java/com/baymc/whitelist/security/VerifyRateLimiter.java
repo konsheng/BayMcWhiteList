@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Tracks failed /whitelist attempts in memory and temporarily locks noisy players or IPs.
+ * 在内存中统计 /whitelist 验证失败次数, 并按玩家 UUID 或 IP 临时锁定高频失败来源
  */
 public final class VerifyRateLimiter {
     private final PluginConfig.VerifyRateLimitSettings settings;
@@ -18,19 +18,31 @@ public final class VerifyRateLimiter {
     private final Map<String, Bucket> ipBuckets = new HashMap<>();
     private final Map<String, Instant> notificationTimes = new HashMap<>();
 
+    /**
+     * 使用真实 UTC 时钟创建限流器
+     */
     public VerifyRateLimiter(PluginConfig.VerifyRateLimitSettings settings) {
         this(settings, Clock.systemUTC());
     }
 
+    /**
+     * 使用指定时钟创建限流器, 便于测试窗口和锁定时间
+     */
     public VerifyRateLimiter(PluginConfig.VerifyRateLimitSettings settings, Clock clock) {
         this.settings = settings;
         this.clock = clock;
     }
 
+    /**
+     * 返回当前不可变限流配置
+     */
     public PluginConfig.VerifyRateLimitSettings settings() {
         return settings;
     }
 
+    /**
+     * 检查玩家或 IP 当前是否仍处于锁定期
+     */
     public synchronized Decision check(String playerUuid, String ip) {
         if (!settings.enabled()) {
             return Decision.allowed();
@@ -54,6 +66,9 @@ public final class VerifyRateLimiter {
         return Decision.allowed();
     }
 
+    /**
+     * 记录一次验证失败, 并在达到阈值时返回触发限流的维度
+     */
     public synchronized Decision recordFailure(String playerUuid, String ip) {
         if (!settings.enabled()) {
             return Decision.allowed();
@@ -79,6 +94,9 @@ public final class VerifyRateLimiter {
         return Decision.allowed();
     }
 
+    /**
+     * 验证成功后清理玩家和 IP 的失败计数
+     */
     public synchronized void reset(String playerUuid, String ip) {
         playerBuckets.remove(playerUuid);
         if (!isBlank(ip)) {
@@ -86,6 +104,9 @@ public final class VerifyRateLimiter {
         }
     }
 
+    /**
+     * 判断当前维度是否已经超过安全通知的最短间隔
+     */
     public synchronized boolean shouldNotify(Scope scope, String playerUuid, String ip) {
         String key = notificationKey(scope, playerUuid, ip);
         if (key == null) {
@@ -103,6 +124,9 @@ public final class VerifyRateLimiter {
         return true;
     }
 
+    /**
+     * 测试用: 返回当前仍被内存追踪的桶和通知键数量
+     */
     synchronized int trackedEntryCount() {
         return playerBuckets.size() + ipBuckets.size() + notificationTimes.size();
     }
@@ -177,17 +201,31 @@ public final class VerifyRateLimiter {
         };
     }
 
+    /**
+     * 一次限流检查或记录失败后的总体状态
+     */
     public enum Status {
+        /** 允许继续验证 */
         ALLOWED,
+        /** 已在锁定期内 */
         LOCKED,
+        /** 本次失败刚触发限流 */
         RATE_LIMITED
     }
 
+    /**
+     * 触发限流或锁定的统计维度
+     */
     public enum Scope {
+        /** 按玩家 UUID 统计 */
         PLAYER,
+        /** 按来源 IP 统计 */
         IP
     }
 
+    /**
+     * 返回给命令层的限流决策, 包含剩余秒数和本次是否需要写 blocked 日志
+     */
     public record Decision(Status status, Scope scope, long remainingSeconds, boolean shouldLogBlocked) {
         public static Decision allowed() {
             return new Decision(Status.ALLOWED, null, 0L, false);
@@ -202,6 +240,9 @@ public final class VerifyRateLimiter {
         }
     }
 
+    /**
+     * 单个玩家或 IP 在当前窗口内的失败计数和锁定状态
+     */
     private static final class Bucket {
         private Instant windowStartedAt;
         private int failureCount;

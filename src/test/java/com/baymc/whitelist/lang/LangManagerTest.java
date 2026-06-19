@@ -11,6 +11,9 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * 针对语言文件加载失败和成功路径的单元测试
+ */
 class LangManagerTest {
     @TempDir
     private Path tempDir;

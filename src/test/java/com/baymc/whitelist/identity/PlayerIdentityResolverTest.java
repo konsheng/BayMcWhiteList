@@ -8,6 +8,9 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+/**
+ * 针对白名单 UUID 来源解析规则的单元测试
+ */
 class PlayerIdentityResolverTest {
     @Test
     void offlineNameUuidMatchesBukkitOfflineAlgorithm() {

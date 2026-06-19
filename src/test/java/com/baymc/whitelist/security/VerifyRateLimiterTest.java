@@ -9,6 +9,9 @@ import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/**
+ * 针对玩家和 IP 维度验证失败限流的单元测试
+ */
 class VerifyRateLimiterTest {
     private static final String PLAYER_UUID = "00000000-0000-0000-0000-000000000001";
     private static final String IP = "127.0.0.1";

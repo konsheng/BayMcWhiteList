@@ -13,6 +13,9 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * 确保代码中引用的语言键都存在于内置中文语言文件中
+ */
 class LanguageKeyCoverageTest {
     private static final Pattern LANGUAGE_KEY = Pattern.compile(
             "\"((?:common|usage|code|admin|mysql|kick|security|state|join)\\.[a-z0-9_.-]+"

@@ -26,6 +26,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * 针对玩家侧 /whitelist 命令执行边界和运行期快照的测试
+ */
 class WhitelistCommandExecutionTest {
     @Test
     void rejectsConsoleSenderBeforeDatabaseAccess() throws Exception {
