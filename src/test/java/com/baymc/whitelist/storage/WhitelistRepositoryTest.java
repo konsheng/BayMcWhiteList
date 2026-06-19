@@ -27,16 +27,24 @@ class WhitelistRepositoryTest {
      * 超长审计字段应被截断到数据库字段上限
      */
     @Test
-    void truncateCutsLongAuditFieldsToDatabaseLimit() {
+    void truncateCutsLongAuditFieldsToDatabaseLimits() {
+        String longPlayerName = "P".repeat(StorageLimits.PLAYER_NAME + 20);
+        String longAction = "A".repeat(StorageLimits.ACTION + 20);
         String longCode = "X".repeat(StorageLimits.CODE + 20);
+        String longServerName = "S".repeat(StorageLimits.SERVER_NAME + 20);
+        String longIp = "I".repeat(StorageLimits.IP + 20);
         String longMessage = "M".repeat(StorageLimits.MESSAGE + 20);
 
+        assertEquals(StorageLimits.PLAYER_NAME, WhitelistRepository.truncate(longPlayerName, StorageLimits.PLAYER_NAME).length());
+        assertEquals(StorageLimits.ACTION, WhitelistRepository.truncate(longAction, StorageLimits.ACTION).length());
         assertEquals(StorageLimits.CODE, WhitelistRepository.truncate(longCode, StorageLimits.CODE).length());
+        assertEquals(StorageLimits.SERVER_NAME, WhitelistRepository.truncate(longServerName, StorageLimits.SERVER_NAME).length());
+        assertEquals(StorageLimits.IP, WhitelistRepository.truncate(longIp, StorageLimits.IP).length());
         assertEquals(StorageLimits.MESSAGE, WhitelistRepository.truncate(longMessage, StorageLimits.MESSAGE).length());
     }
 
     /**
-     * 玩家名回查应保留普通索引可用的等值查询, 不在列上包 LOWER()
+     * UUID 查询应保留普通索引可用的等值查询, 不在列上包 LOWER()
      */
     @Test
     void findByUuidQueryUsesIndexedColumn() {

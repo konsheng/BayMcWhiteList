@@ -165,7 +165,7 @@ remove:
 玩家ID: <填写玩家名>
 
 联网查询该玩家的正版 Minecraft UUID, 使用 Mojang 官方接口
-https://api.mojang.com/users/profiles/minecraft/<玩家ID>
+https://api.minecraftservices.com/minecraft/profile/lookup/name/<玩家ID>
 
 将返回的 32 位 UUID 转成标准 UUID 格式
 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx

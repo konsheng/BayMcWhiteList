@@ -299,6 +299,86 @@ class BayMcWhiteListCommandExecutionTest {
     }
 
     @Test
+    void serverSourceRemoveAcceptsUuidInput() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(
+                        PluginConfig.ServerMode.LOGIN,
+                        false,
+                        PluginConfig.UuidSource.SERVER
+                ),
+                true
+        );
+        when(runtime.repository().findByUuid(CommandTestSupport.PLAYER_UUID_TEXT))
+                .thenReturn(Optional.of(record()));
+        when(runtime.repository().removeByUuid(CommandTestSupport.PLAYER_UUID_TEXT)).thenReturn(true);
+        BayMcWhiteListCommand command = new BayMcWhiteListCommand(runtime.plugin());
+        CommandSender sender = CommandTestSupport.sender("Admin", Set.of("baymcwhitelist.remove"));
+
+        command.onCommand(sender, CommandTestSupport.command(), "wl",
+                new String[]{"remove", CommandTestSupport.PLAYER_UUID_TEXT});
+
+        verify(runtime.repository()).findByUuid(CommandTestSupport.PLAYER_UUID_TEXT);
+        verify(runtime.repository()).removeByUuid(CommandTestSupport.PLAYER_UUID_TEXT);
+        verifyNoInteractions(runtime.mojangProfileService());
+        verify(runtime.lang()).send(eq(sender), eq("admin.remove-success"), anyMap());
+    }
+
+    @Test
+    void offlineNameStatusComputesUuidWithoutMojangLookup() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(
+                        PluginConfig.ServerMode.LOGIN,
+                        true,
+                        PluginConfig.UuidSource.OFFLINE_NAME
+                ),
+                true
+        );
+        String offlineUuid = PlayerIdentityResolver.offlineNameUuid("Notch").toString();
+        when(runtime.repository().findByUuid(offlineUuid)).thenReturn(Optional.empty());
+        BayMcWhiteListCommand command = new BayMcWhiteListCommand(runtime.plugin());
+        CommandSender sender = CommandTestSupport.sender("Admin", Set.of("baymcwhitelist.status"));
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayerExact("Notch")).thenReturn(null);
+
+            command.onCommand(sender, CommandTestSupport.command(), "wl", new String[]{"status", "Notch"});
+        }
+
+        verify(runtime.repository()).findByUuid(offlineUuid);
+        verifyNoInteractions(runtime.mojangProfileService());
+        verify(runtime.lang()).send(eq(sender), eq("admin.status-not-whitelisted"), anyMap());
+    }
+
+    @Test
+    void offlineNameRemoveComputesUuidWithoutMojangLookup() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(
+                        PluginConfig.ServerMode.LOGIN,
+                        false,
+                        PluginConfig.UuidSource.OFFLINE_NAME
+                ),
+                true
+        );
+        String offlineUuid = PlayerIdentityResolver.offlineNameUuid("Notch").toString();
+        when(runtime.repository().findByUuid(offlineUuid))
+                .thenReturn(Optional.of(record(offlineUuid)));
+        when(runtime.repository().removeByUuid(offlineUuid)).thenReturn(true);
+        BayMcWhiteListCommand command = new BayMcWhiteListCommand(runtime.plugin());
+        CommandSender sender = CommandTestSupport.sender("Admin", Set.of("baymcwhitelist.remove"));
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayerExact("Notch")).thenReturn(null);
+
+            command.onCommand(sender, CommandTestSupport.command(), "wl", new String[]{"remove", "Notch"});
+        }
+
+        verify(runtime.repository()).findByUuid(offlineUuid);
+        verify(runtime.repository()).removeByUuid(offlineUuid);
+        verifyNoInteractions(runtime.mojangProfileService());
+        verify(runtime.lang()).send(eq(sender), eq("admin.remove-success"), anyMap());
+    }
+
+    @Test
     void serverSourceOnlineNameUsesServerUuid() {
         CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
                 CommandTestSupport.config(
@@ -333,8 +413,12 @@ class BayMcWhiteListCommandExecutionTest {
     }
 
     private static WhitelistRecord record() {
+        return record(CommandTestSupport.PLAYER_UUID_TEXT);
+    }
+
+    private static WhitelistRecord record(String playerUuid) {
         return new WhitelistRecord(
-                CommandTestSupport.PLAYER_UUID_TEXT,
+                playerUuid,
                 "Notch",
                 "BAYMC-ABCDEFGH",
                 LocalDate.parse("2026-06-19"),
