@@ -66,6 +66,18 @@ class WhitelistRepositoryTest {
         assertFalse(sql.contains("id BIGINT PRIMARY KEY AUTO_INCREMENT"));
     }
 
+    @Test
+    void logSchemaAndInsertUsePlayerUuidField() {
+        String schemaSql = SqlTemplates.load("sql/schema.sql").render("create_whitelist_logs", schemaPlaceholders());
+        String insertSql = SqlTemplates.load("sql/repository.sql").render("insert_log", tablePlaceholders());
+
+        assertTrue(schemaSql.contains("player_uuid VARCHAR(" + StorageLimits.PLAYER_UUID + ") NOT NULL"));
+        assertTrue(schemaSql.contains("INDEX idx_player_uuid (player_uuid)"));
+        assertTrue(insertSql.contains("(player_uuid, player_name, action, code, server_name, ip, message, created_at)"));
+        assertFalse(schemaSql.contains("player_key"));
+        assertFalse(insertSql.contains("player_key"));
+    }
+
     /**
      * 手动添加 SQL 应显式写入空邀请码和空最后进入时间
      */

@@ -1,0 +1,138 @@
+package com.baymc.whitelist.command;
+
+import com.baymc.whitelist.config.PluginConfig;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.junit.jupiter.api.Test;
+
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+class WhitelistCommandExecutionTest {
+    @Test
+    void rejectsConsoleSenderBeforeDatabaseAccess() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.LOGIN),
+                true
+        );
+        WhitelistCommand command = new WhitelistCommand(runtime.plugin());
+        CommandSender console = CommandTestSupport.sender("Console", Set.of());
+
+        command.onCommand(console, CommandTestSupport.command(), "whitelist", new String[]{"BAYMC-ABCDEFGH"});
+
+        verify(runtime.lang()).send(console, "common.only-player");
+        verify(runtime.repository(), never()).isWhitelisted(org.mockito.ArgumentMatchers.anyString());
+        org.junit.jupiter.api.Assertions.assertEquals(1, runtime.closeCount().get());
+    }
+
+    @Test
+    void rejectsPlayerWithoutUsePermission() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.LOGIN),
+                true
+        );
+        WhitelistCommand command = new WhitelistCommand(runtime.plugin());
+        Player player = CommandTestSupport.player("Notch", CommandTestSupport.PLAYER_UUID, Set.of());
+
+        command.onCommand(player, CommandTestSupport.command(), "whitelist", new String[]{"BAYMC-ABCDEFGH"});
+
+        verify(runtime.lang()).send(player, "common.no-permission");
+        verify(runtime.repository(), never()).isWhitelisted(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void rejectsInviteSubmissionOutsideLoginServer() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.PROTECTED),
+                true
+        );
+        WhitelistCommand command = new WhitelistCommand(runtime.plugin());
+        Player player = CommandTestSupport.player("Notch", CommandTestSupport.PLAYER_UUID, Set.of("baymcwhitelist.use"));
+
+        command.onCommand(player, CommandTestSupport.command(), "whitelist", new String[]{"BAYMC-ABCDEFGH"});
+
+        verify(runtime.lang()).send(player, "code.login-server-only");
+        verify(runtime.repository(), never()).isWhitelisted(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void rejectsExtraInviteArgumentsWithUsage() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.LOGIN),
+                true
+        );
+        WhitelistCommand command = new WhitelistCommand(runtime.plugin());
+        Player player = CommandTestSupport.player("Notch", CommandTestSupport.PLAYER_UUID, Set.of("baymcwhitelist.use"));
+
+        command.onCommand(player, CommandTestSupport.command(), "whitelist", new String[]{"one", "two"});
+
+        verify(runtime.lang()).send(player, "usage.whitelist");
+        verify(runtime.repository(), never()).isWhitelisted(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void selfStatusQueriesOnlyCurrentPlayerUuid() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.PROTECTED),
+                true
+        );
+        when(runtime.repository().findByUuid(CommandTestSupport.PLAYER_UUID_TEXT)).thenReturn(Optional.empty());
+        WhitelistCommand command = new WhitelistCommand(runtime.plugin());
+        Player player = CommandTestSupport.player(
+                "Notch",
+                CommandTestSupport.PLAYER_UUID,
+                Set.of("baymcwhitelist.status.self")
+        );
+
+        command.onCommand(player, CommandTestSupport.command(), "whitelist", new String[]{});
+
+        verify(runtime.repository()).findByUuid(CommandTestSupport.PLAYER_UUID_TEXT);
+        verify(runtime.lang()).send(eq(player), eq("player.status-not-whitelisted"), anyMap());
+        org.junit.jupiter.api.Assertions.assertEquals(1, runtime.closeCount().get());
+    }
+
+    @Test
+    void asyncSelfStatusUsesRuntimeSnapshotCapturedAtCommandStart() throws Exception {
+        CommandTestSupport.RuntimeHarness firstRuntime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.PROTECTED),
+                true
+        );
+        CommandTestSupport.RuntimeHarness secondRuntime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.PROTECTED),
+                true
+        );
+        when(firstRuntime.plugin().runtimeState()).thenReturn(firstRuntime.state(), secondRuntime.state());
+        when(firstRuntime.repository().findByUuid(CommandTestSupport.PLAYER_UUID_TEXT)).thenReturn(Optional.empty());
+        AtomicReference<Runnable> asyncTask = new AtomicReference<>();
+        doAnswer(invocation -> {
+            asyncTask.set(invocation.getArgument(0, Runnable.class));
+            return null;
+        }).when(firstRuntime.scheduler()).runAsync(any(Runnable.class));
+
+        WhitelistCommand command = new WhitelistCommand(firstRuntime.plugin());
+        Player player = CommandTestSupport.player(
+                "Notch",
+                CommandTestSupport.PLAYER_UUID,
+                Set.of("baymcwhitelist.status.self")
+        );
+
+        command.onCommand(player, CommandTestSupport.command(), "whitelist", new String[]{});
+        asyncTask.get().run();
+
+        verify(firstRuntime.plugin(), times(1)).runtimeState();
+        verify(firstRuntime.repository()).findByUuid(CommandTestSupport.PLAYER_UUID_TEXT);
+        verifyNoInteractions(secondRuntime.repository());
+        verify(firstRuntime.lang()).send(eq(player), eq("player.status-not-whitelisted"), anyMap());
+    }
+}

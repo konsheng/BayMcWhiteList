@@ -30,6 +30,8 @@ dependencies {
     testImplementation("io.papermc.paper:paper-api:26.1.2.build.70-stable")
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.mockito:mockito-core:5.20.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.20.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
