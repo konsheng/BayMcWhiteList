@@ -4,6 +4,7 @@ import com.baymc.whitelist.config.PluginConfig;
 import com.baymc.whitelist.code.VerificationResult;
 import com.baymc.whitelist.identity.PlayerIdentity;
 import com.baymc.whitelist.identity.PlayerIdentityResolver;
+import com.baymc.whitelist.storage.WhitelistLogEntry;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
@@ -183,5 +184,67 @@ class WhitelistCommandExecutionTest {
                 any(java.time.LocalDateTime.class)
         );
         org.junit.jupiter.api.Assertions.assertEquals(offlineUuid, identity.getValue().uuidText());
+    }
+
+    @Test
+    void inviteVerificationWritesSuccessAuditLog() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.LOGIN),
+                true
+        );
+        when(runtime.repository().isWhitelisted(CommandTestSupport.PLAYER_UUID_TEXT)).thenReturn(false);
+        when(runtime.inviteCodeService().verify("BAYMC-ABCDEFGH", CommandTestSupport.PLAYER_UUID_TEXT))
+                .thenReturn(VerificationResult.valid(
+                        "BAYMC-ABCDEFGH",
+                        LocalDate.parse("2026-06-19"),
+                        ZonedDateTime.of(2026, 6, 25, 23, 59, 59, 0, ZoneId.of("Asia/Shanghai"))
+                ));
+        WhitelistCommand command = new WhitelistCommand(runtime.plugin());
+        Player player = CommandTestSupport.player(
+                "Notch",
+                CommandTestSupport.PLAYER_UUID,
+                Set.of("baymcwhitelist.use")
+        );
+
+        command.onCommand(player, CommandTestSupport.command(), "whitelist", new String[]{"BAYMC-ABCDEFGH"});
+
+        org.mockito.ArgumentCaptor<WhitelistLogEntry> logEntry = org.mockito.ArgumentCaptor.forClass(WhitelistLogEntry.class);
+        verify(runtime.repository()).log(logEntry.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("VERIFY_SUCCESS", logEntry.getValue().action());
+        org.junit.jupiter.api.Assertions.assertEquals("BAYMC-ABCDEFGH", logEntry.getValue().code());
+        org.junit.jupiter.api.Assertions.assertEquals("127.0.0.1", logEntry.getValue().ip());
+        org.junit.jupiter.api.Assertions.assertEquals(1, runtime.closeCount().get());
+    }
+
+    @Test
+    void invalidInviteFormatWritesAttemptLogAndKeepsPlayerFeedback() throws Exception {
+        CommandTestSupport.RuntimeHarness runtime = CommandTestSupport.runtime(
+                CommandTestSupport.config(PluginConfig.ServerMode.LOGIN),
+                true
+        );
+        when(runtime.repository().isWhitelisted(CommandTestSupport.PLAYER_UUID_TEXT)).thenReturn(false);
+        when(runtime.inviteCodeService().verify("bad-code", CommandTestSupport.PLAYER_UUID_TEXT))
+                .thenReturn(VerificationResult.invalidFormat());
+        WhitelistCommand command = new WhitelistCommand(runtime.plugin());
+        Player player = CommandTestSupport.player(
+                "Notch",
+                CommandTestSupport.PLAYER_UUID,
+                Set.of("baymcwhitelist.use")
+        );
+
+        command.onCommand(player, CommandTestSupport.command(), "whitelist", new String[]{"bad-code"});
+
+        org.mockito.ArgumentCaptor<WhitelistLogEntry> logEntry = org.mockito.ArgumentCaptor.forClass(WhitelistLogEntry.class);
+        verify(runtime.repository()).log(logEntry.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("VERIFY_INVALID_FORMAT", logEntry.getValue().action());
+        org.junit.jupiter.api.Assertions.assertEquals("bad-code", logEntry.getValue().code());
+        org.junit.jupiter.api.Assertions.assertEquals("invalid_format", logEntry.getValue().message());
+        verify(runtime.lang()).send(eq(player), eq("code.invalid-format"), anyMap());
+        verify(runtime.repository(), never()).upsert(
+                any(PlayerIdentity.class),
+                anyString(),
+                any(LocalDate.class),
+                any(java.time.LocalDateTime.class)
+        );
     }
 }
